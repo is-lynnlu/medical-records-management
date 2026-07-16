@@ -1,0 +1,45 @@
+name: Patch Oral Dose Split
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-index:
+    if: ${{ !contains(github.event.head_commit.message, 'Apply oral dose split patch') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          replacements = [
+              ("function oralDoseItems(rows){return ['替吉奥：3片/2次/day，20mg/片；吃两周休一周']}", "function oralDoseItems(rows,p){if(p?.start==='2026-04-29')return ['2026-04-29~2026-06-02：替吉奥：3片/2次/day，20mg/片；吃两周休一周','2026-06-10~至今：进口替吉奥：3片/2次/day，20mg/片；吃两周休一周'];return ['替吉奥：3片/2次/day，20mg/片；吃两周休一周']}"),
+              ("if(/替吉奥/.test(p.name)){const items=oralDoseItems(rows);return items.length?items:['替吉奥口服（剂量见用药记录）']}", "if(/替吉奥/.test(p.name)){const items=oralDoseItems(rows,p);return items.length?items:['替吉奥口服（剂量见用药记录）']}")
+          ]
+          changed = False
+          for old, new in replacements:
+              if old in s and new not in s:
+                  s = s.replace(old, new, 1)
+                  changed = True
+          if changed:
+              p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patched index
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No index.html changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Apply oral dose split patch [skip ci]"
+          git push
