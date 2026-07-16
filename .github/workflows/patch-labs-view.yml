@@ -59,3 +59,4 @@ const step=Math.max(1,Math.ceil(pts.length/6));const labels=pts.map((p,i)=>(i%st
           git add index.html
           git commit -m "Update lab table and trend chart [skip ci]" || exit 0
           git push
+# trigger: 2026-07-16T11:55:00+08:00
