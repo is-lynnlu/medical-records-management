@@ -1,0 +1,61 @@
+name: Patch Timeline Layout
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-index:
+    if: ${{ !contains(github.event.head_commit.message, 'Apply timeline layout patch') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          css = '''.therapy-timeline{gap:0!important;padding:4px 0!important}
+          .therapy-period{grid-template-columns:210px 38px 1fr!important;gap:12px!important;position:relative}
+          .therapy-period:not(:last-child){padding-bottom:18px!important}
+          .therapy-date{position:static!important;align-self:start!important;margin-top:4px!important}
+          .therapy-axis{position:relative;align-self:stretch;min-height:68px}
+          .therapy-axis:before{content:"";position:absolute;left:50%;top:0;bottom:-18px;width:3px;background:#2c241f;transform:translateX(-50%);border-radius:999px}
+          .therapy-period:last-child .therapy-axis:before{bottom:50%}
+          .therapy-dot{position:absolute;left:50%;top:18px;width:18px;height:18px;background:var(--brand);border:4px solid #fff;box-shadow:0 0 0 2px var(--line),0 0 0 7px rgba(155,80,56,.10);border-radius:50%;transform:translate(-50%,-50%);z-index:1}
+          .therapy-body{padding:0!important;overflow:hidden}
+          .therapy-body summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;cursor:pointer}
+          .therapy-body summary::-webkit-details-marker{display:none}
+          .therapy-summary h3{margin:8px 0 0!important}
+          .therapy-expand{color:var(--brand);font-weight:700;white-space:nowrap}
+          .therapy-body[open] .therapy-expand:before{content:"收起"}
+          .therapy-body:not([open]) .therapy-expand:before{content:"展开"}
+          .therapy-grid{padding:0 14px 14px!important}
+          @media(max-width:900px){.therapy-period{grid-template-columns:1fr!important}.therapy-axis{display:none}.therapy-date{margin:0 0 8px!important}.therapy-period:not(:last-child){padding-bottom:12px!important}}
+          '''.replace('\n          ', '\n')
+          if '.therapy-axis' not in s:
+              marker='@media(max-width:900px){.therapy-period{grid-template-columns:1fr}.therapy-date{position:static}.therapy-grid{grid-template-columns:1fr}}\n'
+              s=s.replace(marker, marker+css, 1)
+          old="function therapyPeriod(p){const rows=rec(null).filter(r=>inPeriod(r,p)).sort((a,b)=>displayDate(a).localeCompare(displayDate(b)));const doses=doseItems(rows,p), cycles=cycleItems(rows,p), events=eventItems(rows,p);return '<article class=\"therapy-period\"><div class=\"therapy-date\">'+esc(p.label)+'</div><div class=\"therapy-body\"><div class=\"therapy-meta\"><span class=\"pill\">'+esc(p.kind)+'</span>'+(p.note?'<span class=\"pill\">'+esc(p.note)+'</span>':'')+'</div><h3>'+esc(p.name)+'</h3><div class=\"therapy-grid\"><div class=\"therapy-box\"><h4>治疗方案/剂量</h4>'+listItems(doses)+'</div><div class=\"therapy-box\"><h4>周期/用药时间</h4>'+listItems(cycles,'暂无化疗/用药日记录')+'</div><div class=\"therapy-box\"><h4>事件与处理</h4>'+listItems(events,'暂无特殊事件记录')+'</div></div></div></article>'}"
+          new="function therapyPeriod(p){const rows=rec(null).filter(r=>inPeriod(r,p)).sort((a,b)=>displayDate(a).localeCompare(displayDate(b)));const doses=doseItems(rows,p), cycles=cycleItems(rows,p), events=eventItems(rows,p);return '<article class=\"therapy-period\"><div class=\"therapy-date\">'+esc(p.label)+'</div><div class=\"therapy-axis\"><span class=\"therapy-dot\"></span></div><details class=\"therapy-body\"><summary><div class=\"therapy-summary\"><div class=\"therapy-meta\"><span class=\"pill\">'+esc(p.kind)+'</span>'+(p.note?'<span class=\"pill\">'+esc(p.note)+'</span>':'')+'</div><h3>'+esc(p.name)+'</h3></div><span class=\"therapy-expand\"></span></summary><div class=\"therapy-grid\"><div class=\"therapy-box\"><h4>治疗方案/剂量</h4>'+listItems(doses)+'</div><div class=\"therapy-box\"><h4>周期/用药时间</h4>'+listItems(cycles,'暂无化疗/用药日记录')+'</div><div class=\"therapy-box\"><h4>事件与处理</h4>'+listItems(events,'暂无特殊事件记录')+'</div></div></details></article>'}"
+          if old in s:
+              s=s.replace(old,new,1)
+          s=s.replace("THERAPY_PERIODS.map(therapyPeriod).join('')", "THERAPY_PERIODS.slice().reverse().map(therapyPeriod).join('')", 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patched index
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No index.html changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Apply timeline layout patch [skip ci]"
+          git push
