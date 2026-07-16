@@ -1,0 +1,43 @@
+name: Patch 2026 AG Timeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-index:
+    if: ${{ !contains(github.event.head_commit.message, 'Apply 2026 AG timeline patch') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = "function effectiveDate(r){return /重启AG/.test(schemeText(r))&&r.date>='2025-01-01'&&r.date<='2025-03-31'?'2026'+r.date.slice(4):r.date}"
+          new = "function isShiftedRestartAg(r){return r.date>='2025-01-01'&&r.date<='2025-03-31'&&r.type==='treatment'&&/C[6-9]W\\d+化疗日/i.test(schemeText(r))}\nfunction effectiveDate(r){return isShiftedRestartAg(r)||(/重启AG/.test(schemeText(r))&&r.date>='2025-01-01'&&r.date<='2025-03-31')?'2026'+r.date.slice(4):r.date}"
+          if old in s:
+              s = s.replace(old, new, 1)
+          old = "function doseItems(rows,p){if(/AG/.test(p.name)){const items=agDoseItems(rows);return items.length?items:['AG：白蛋白紫杉醇 + 吉西他滨（剂量见化疗记录）']}if(/替吉奥/.test(p.name)){const items=oralDoseItems(rows);return items.length?items:['替吉奥口服（剂量见用药记录）']}return []}"
+          new = "function doseItems(rows,p){if(/AG/.test(p.name)){if(/9\\.5/.test(p.name))return ['2025-09-24~2025-09-30：白紫：160mg；吉西他滨：1.4g','2025-10-16~2026-02-05：白紫：140mg；吉西他滨：1.2g','2026-02-24~2026-03-17：白紫：140mg；吉西他滨：1.4g'];const items=agDoseItems(rows);return items.length?items:['AG：白蛋白紫杉醇 + 吉西他滨（剂量见化疗记录）']}if(/替吉奥/.test(p.name)){const items=oralDoseItems(rows);return items.length?items:['替吉奥口服（剂量见用药记录）']}return []}"
+          if old in s:
+              s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patched index
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No index.html changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Apply 2026 AG timeline patch [skip ci]"
+          git push
