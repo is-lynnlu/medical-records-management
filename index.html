@@ -162,7 +162,7 @@ function labRangeControls(){return '<div class="lab-filter"><label>开始日期<
 function labTableToolbar(rows,total){return '<div class="lab-table-toolbar"><span class="lab-count">显示 '+rows.length+' / '+total+' 条有结果记录</span>'+labRangeControls()+'</div>'}
 function markerRef(k){return MARKER_REFS[k]!=null?'≤'+(k==='CEA'?'5.00':k==='CA19-9'?'34.00':k==='CA125'?'35.00':MARKER_REFS[k]):'/'}
 function markerHeaderCell(k){const name=MARKER_LABELS[k]||k;return '<th><span class="lab-cn">'+esc(name)+'</span><span class="lab-abbr">'+esc(k)+'</span><span class="lab-ref">'+esc(markerRef(k))+'</span></th>'}
-function markerKeys(){return metricKeys('marker').filter(k=>!/(摘要|监测周期|备注)/.test(k))}
+function markerKeys(){return ['CA242','CEA','CA19-9','CA125','CA72-4']}
 function hasMarkerResults(r){return Array.isArray(r.metrics)&&r.metrics.some(m=>String(m.value||'').trim())}
 function inMarkerRange(r){return (!state.markerStart||r.date>=state.markerStart)&&(!state.markerEnd||r.date<=state.markerEnd)}
 function markerRangeControls(){return '<div class="lab-filter"><label>开始日期<input type="date" id="markerStart" value="'+esc(state.markerStart)+'"></label><label>结束日期<input type="date" id="markerEnd" value="'+esc(state.markerEnd)+'"></label><button class="secondary" id="markerRangeReset">重置时间</button></div>'}
