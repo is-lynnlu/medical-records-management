@@ -97,9 +97,9 @@ function markerRefLabel(k){return k+'（≤'+(k==='CEA'?'5.00':k==='CA19-9'?'34.
 function markerCode(k){return Object.keys(MARKER_REFS).find(x=>String(k||'').toLowerCase().includes(x.toLowerCase()))||k}
 function markerStatus(k,v){const code=markerCode(k), n=num(v);return Number.isFinite(n)&&MARKER_REFS[code]!=null&&n>MARKER_REFS[code]?'high':''}
 function status(v){return /↑|高/.test(v||'')?'high':/↓|低/.test(v||'')?'low':''}
-function badge(v,forced){const st=forced||status(v);return st?'<span class="badge '+st+'">'+(st==='high'?'高':'低')+'</span>':''}
+function badge(v,forced){const st=forced||status(v);if(st!=='high'&&st!=='low')return '';return '<span class="badge '+st+'">'+(st==='high'?'高':'低')+'</span>'}
 function metricName(m,fallback){if(!m)return fallback||'';if(m.cn)return m.cn+(m.ref?'（'+m.ref+'）':'');return m.key||fallback||''}
-function metricCard(m,label,forced){return '<span class="metric-item"><b class="metric-title">'+esc(label||metricName(m))+'</b><div class="metric-value">'+esc(m?.raw||'-')+(m?.unit?' '+esc(m.unit):'')+' '+badge(m?.raw,forced||m?.status)+'</div></span>'}
+function metricCard(m,label,forced){const st=forced||metricStatus(m,m?.key);return '<span class="metric-item"><b class="metric-title">'+esc(label||metricName(m))+'</b><div class="metric-value">'+esc(m?.raw||'-')+(m?.unit?' '+esc(m.unit):'')+' '+badge(m?.raw,st)+'</div></span>'}
 function overview(){const p=state.profile, lab=latest('lab'), mark=latestWithMetrics('marker'), img=latest('imaging');appShell('<section><div class="stat-grid">'+stat('诊断/分期',p.diagnosis,'核心诊断信息')+stat('手术情况及病理诊断',[p.surgery,p.pathology].filter(Boolean).join('\n\n'),'')+stat('免疫组化',p.immunohistochemistry||'未记录','')+stat('基因检测',p.geneticTesting||'未记录','')+stat('当前治疗状态',p.stage||'未记录','')+'</div><div class="two-col overview-metrics gap-top"><article class="card lab-card"><h2>最近一次血检</h2><p class="date">'+esc(lab?.date||'')+'</p><div class="metric-row">'+(lab?.metrics||[]).filter(m=>m.key!=='备注').map(m=>metricCard({...m,raw:m.value})).join('')+'</div></article><article class="card marker-card"><h2>最近一次肿瘤标志物</h2><p class="date">'+esc(mark?.date||'')+'</p><div class="metric-row">'+['CA242','CEA','CA19-9','CA125','CA72-4'].map(k=>{const m=metric(mark||{},[k]);return metricCard(m,markerRefLabel(k),markerStatus(k,m?.raw))}).join('')+'</div></article></div><article class="card gap-top"><h2>最近影像</h2>'+row('日期',img?.date)+row('检查',img?.title)+row('摘要',img?.summary||img?.details)+'</article></section>')}
 const THERAPY_PERIODS=[
 {start:'2024-04-11',end:'2024-04-11',label:'2024-04-11',kind:'手术',name:'胰体尾+脾切除术',note:''},
@@ -144,8 +144,8 @@ function record(r){return '<article class="record"><div class="record-top"><span
 const DEFAULT_REFS={'WBC 白细胞':'3.50–9.50','NEUT3 中性粒细胞绝对值':'2.00–7.50','NEUT# 中性粒细胞绝对值':'2.00–7.50','HGB 血红蛋白':'120–160','PLT 血小板':'100–350','RBC 红细胞':'4.00–5.50','AST 天门冬氨酸氨基转移酶':'15–40','GGT 谷氨酰转肽酶':'10–60','ALP 碱性磷酸酶':'45–125','GLU 葡萄糖':'3.9–6.1','hs-CRP C反应蛋白（超敏）':'<3.00'};
 function defaultRef(key){return DEFAULT_REFS[key]||''}
 function refBounds(ref){const s=String(ref||'').replace(/参考值|参考|：|:/g,'').trim();if(!s)return null;const nums=[...s.matchAll(/-?\d+(?:\.\d+)?/g)].map(m=>Number(m[0]));if(/[≤<]/.test(s)&&nums.length)return {high:nums[0]};if(/[≥>]/.test(s)&&nums.length)return {low:nums[0]};if(nums.length>=2)return {low:nums[0],high:nums[1]};return null}
-function refStatus(value,ref){const v=Number(value);const b=refBounds(ref);if(!Number.isFinite(v)||!b)return '';if(Number.isFinite(b.high)&&v>b.high)return 'high';if(Number.isFinite(b.low)&&v<b.low)return 'low';return 'normal'}
-function metricStatus(m,key){return m?.status||status(m?.raw||m?.value)||refStatus(m?.value, m?.ref||defaultRef(key))}
+function refStatus(value,ref){const v=num(value);const b=refBounds(ref);if(!Number.isFinite(v)||!b)return '';if(Number.isFinite(b.high)&&v>b.high)return 'high';if(Number.isFinite(b.low)&&v<b.low)return 'low';return 'normal'}
+function metricStatus(m,key){const byRef=refStatus(m?.value, m?.ref||defaultRef(key));return byRef||status(m?.raw||m?.value)||m?.status||''}
 function displayRef(m,key){return m?.ref||defaultRef(key)||''}
 function labMetricCounts(){const counts={};rec(['lab']).filter(hasLabResults).forEach(r=>(r.metrics||[]).forEach(m=>{const key=canonicalMetricKey(m.key);if(key!=='备注'&&String(m.value||'').trim())counts[key]=(counts[key]||0)+1}));return counts}
 function labKeys(){const counts=labMetricCounts();return metricKeys('lab').filter(k=>k!=='备注'&&(counts[k]||0)>1)}
