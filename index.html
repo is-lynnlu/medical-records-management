@@ -107,9 +107,9 @@ const OVERVIEW_LAB_METRICS=['WBC 白细胞','NEUT3 中性粒细胞绝对值','PL
 function overview(){const p=state.profile, lab=latest('lab'), mark=latestWithMetrics('marker'), img=latest('imaging');appShell('<section><div class="stat-grid">'+stat('诊断/分期',p.diagnosis,'核心诊断信息')+stat('手术情况及病理诊断',[p.surgery,p.pathology].filter(Boolean).join('\n\n'),'')+stat('免疫组化',p.immunohistochemistry||'未记录','')+stat('基因检测',p.geneticTesting||'未记录','')+stat('当前治疗状态',p.stage||'未记录','')+'</div><div class="two-col overview-metrics gap-top"><article class="card lab-card"><h2>最近一次血检</h2><p class="date">'+esc(lab?.date||'')+'</p><div class="metric-row">'+OVERVIEW_LAB_METRICS.map(k=>metricCard(metric(lab||{},[k]),k)).join('')+'</div></article><article class="card marker-card"><h2>最近一次肿瘤标志物</h2><p class="date">'+esc(mark?.date||'')+'</p><div class="metric-row">'+['CA242','CEA','CA19-9','CA125','CA72-4'].map(k=>{const m=metric(mark||{},[k]);return metricCard(m,markerRefLabel(k),markerStatus(k,m?.raw))}).join('')+'</div></article></div><article class="card gap-top"><h2>最近影像</h2>'+row('日期',img?.date)+row('检查',img?.title)+row('摘要',img?.summary||img?.details)+'</article></section>')}
 const THERAPY_PERIODS=[
 {start:'2024-04-11',end:'2024-04-11',label:'2024-04-11',kind:'手术',name:'胰体尾+脾切除术',note:''},
-{start:'2024-06-15',end:'2024-11-20',label:'2024.06.15~2024.11.20',kind:'化疗',name:'AG化疗（8个周期）',note:''},
+{start:'2024-06-15',end:'2024-11-20',label:'2024.06.15~2024.11.20',kind:'化疗',name:'AG化疗（8个周期，16次）',note:''},
 {start:'2024-12-11',end:'2025-07-16',label:'2024.12.11~2025.07.16',kind:'口服药',name:'口服替吉奥（10个周期）',note:''},
-{start:'2025-09-24',end:'2026-03-17',label:'2025.09.24~2026.03.17',kind:'化疗',name:'AG化疗（9.5个周期）',note:'因肿标上涨（173）而更换方案'},
+{start:'2025-09-24',end:'2026-03-17',label:'2025.09.24~2026.03.17',kind:'化疗',name:'AG化疗（8.5个周期，17次）',note:'因肿标上涨（173）而更换方案'},
 {start:'2026-04-29',end:'9999-12-31',label:'2026.04.29~至今',kind:'口服药',name:'口服替吉奥',note:''}
 ];
 function isShiftedRestartAg(r){return r.date>='2025-01-01'&&r.date<='2025-03-31'&&r.type==='treatment'&&/C[6-9]W\d+化疗日/i.test(schemeText(r))}
