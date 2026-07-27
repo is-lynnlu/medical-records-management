@@ -191,6 +191,7 @@ const MARKER_TREATMENT_COLORS={surgery:'#fde8c8',ag:'#e8dff5',s1:'#d3ede0',other
 function markerTreatmentKey(p){if(p.kind==='手术')return 'surgery';if(/AG/.test(p.name))return 'ag';if(/替吉奥/.test(p.name))return 's1';return 'other'}
 function markerBandLabel(p){const k=p.treatmentKey||markerTreatmentKey(p);return k==='ag'?'AG化疗':k==='s1'?'替吉奥':p.name.replace(/（.*?）/g,'').replace(/^口服/,'')}
 function markerBandPeriods(startMs,endMs){return THERAPY_PERIODS.map(p=>{const treatmentKey=markerTreatmentKey(p);return {...p,treatmentKey,color:MARKER_TREATMENT_COLORS[treatmentKey]||MARKER_TREATMENT_COLORS.other}}).map(p=>{const s=Math.max(dateMs(p.start),startMs),e=Math.min(dateMs(p.end==='9999-12-31'?new Date(endMs).toISOString().slice(0,10):p.end),endMs);return {...p,s,e}}).filter(p=>p.e>=p.s)}
+function treatmentStageOn(date){const period=THERAPY_PERIODS.filter(p=>date>=p.start&&date<=(p.end==='9999-12-31'?date:p.end)).sort((a,b)=>b.start.localeCompare(a.start))[0];return period?markerBandLabel({...period,treatmentKey:markerTreatmentKey(period)}):'治疗间歇期'}
 function markerChart(rows,key){
 const pts=rows.map(r=>{const m=metric(r,[key]);return {date:r.date,ms:dateMs(r.date),v:m?.value,raw:m?.raw||m?.value,ref:displayRef(m,key),st:metricStatus(m,key)}}).filter(x=>Number.isFinite(x.v)&&Number.isFinite(x.ms)).sort((a,b)=>a.ms-b.ms);
 if(pts.length<2)return '<div class="empty">可绘制数据不足</div>';
@@ -209,7 +210,7 @@ if(bounds){const v=Number.isFinite(bounds.high)?bounds.high:bounds.low;if(Number
 const d=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+','+y(p.v).toFixed(1)).join(' ');
 const step=Math.max(1,Math.ceil(pts.length/6));
 const labels=pts.map((p,i)=>(i%step===0||i===pts.length-1)?'<text x="'+x(i).toFixed(1)+'" y="'+(h-b+20)+'" text-anchor="middle" class="axis-label">'+p.date.slice(2,7)+'</text>':'').join('');
-const circles=pts.map((p,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="4.5" tabindex="0" class="chart-point point-'+(p.st==='high'?'high':p.st==='low'?'low':'normal')+'" data-date="'+esc(p.date)+'" data-metric="'+esc(markerCode(key))+'" data-value="'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'" data-ref="'+esc(p.ref||'')+'"><title>'+p.date+'：'+p.raw+(p.ref?'；参考 '+p.ref:'')+'</title></circle>').join('');
+const circles=pts.map((p,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="4.5" tabindex="0" class="chart-point point-'+(p.st==='high'?'high':p.st==='low'?'low':'normal')+'" data-date="'+esc(p.date)+'" data-metric="'+esc(markerCode(key))+'" data-value="'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'" data-ref="'+esc(p.ref||'')+'" data-stage="'+esc(treatmentStageOn(p.date))+'"></circle>').join('');
 const valueLabels=pts.map((p,i)=>'<text x="'+x(i).toFixed(1)+'" y="'+Math.max(14,y(p.v)-10).toFixed(1)+'" text-anchor="middle" class="marker-value-label">'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'</text>').join('');
 const axisName=markerCode(key);
 const legendPeriods=markerBandPeriods(startMs,endMs).filter((p,i,a)=>a.findIndex(x=>x.treatmentKey===p.treatmentKey)===i);
@@ -247,9 +248,15 @@ function nonOverlappingValueLabels(pts,x,y){
 const placed=[];
 return pts.map((p,i)=>{
 const value=labDisplayValue({raw:p.raw,value:p.v});
-const labelX=x(i),labelY=Math.max(18,y(p.v)-10),labelW=Math.max(18,[...value].length*7);
-const box={left:labelX-labelW/2-3,right:labelX+labelW/2+3,top:labelY-13,bottom:labelY+3};
-const overlaps=placed.some(other=>!(box.right<other.left||box.left>other.right||box.bottom<other.top||box.top>other.bottom));
+const labelX=x(i),pointY=y(p.v),labelW=Math.max(18,[...value].length*7),isLast=i===pts.length-1;
+let labelY=Math.max(18,pointY-10);
+let box={left:labelX-labelW/2-3,right:labelX+labelW/2+3,top:labelY-13,bottom:labelY+3};
+let overlaps=placed.some(other=>!(box.right<other.left||box.left>other.right||box.bottom<other.top||box.top>other.bottom));
+if(overlaps&&isLast){
+labelY=pointY+22;
+box={left:labelX-labelW/2-3,right:labelX+labelW/2+3,top:labelY-13,bottom:labelY+3};
+overlaps=false;
+}
 if(overlaps)return '';
 placed.push(box);
 return '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="middle" class="marker-value-label'+(/^(high|low)$/.test(p.st)?' value-abnormal':'')+'">'+esc(value)+'</text>';
@@ -280,7 +287,7 @@ if(Number.isFinite(v))refMark='<line x1="'+l+'" x2="'+(w-rr)+'" y1="'+y(v)+'" y2
 const d=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+','+y(p.v).toFixed(1)).join(' ');
 const step=Math.max(1,Math.ceil(pts.length/6));
 const labels=pts.map((p,i)=>(i%step===0||i===pts.length-1)?'<text x="'+x(i).toFixed(1)+'" y="'+(h-b+20)+'" text-anchor="middle" class="axis-label">'+p.date.slice(2,7)+'</text>':'').join('');
-const circles=pts.map((p,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="4.5" tabindex="0" class="chart-point point-'+(p.st==='high'?'high':p.st==='low'?'low':'normal')+'" data-date="'+esc(p.date)+'" data-metric="'+esc(axisName)+'" data-value="'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'" data-ref="'+esc(p.ref||'')+'"><title>'+p.date+'：'+p.raw+(p.ref?'；参考 '+p.ref:'')+'</title></circle>').join('');
+const circles=pts.map((p,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="4.5" tabindex="0" class="chart-point point-'+(p.st==='high'?'high':p.st==='low'?'low':'normal')+'" data-date="'+esc(p.date)+'" data-metric="'+esc(axisName)+'" data-value="'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'" data-ref="'+esc(p.ref||'')+'" data-stage="'+esc(treatmentStageOn(p.date))+'"></circle>').join('');
 const valueLabels=nonOverlappingValueLabels(pts,x,y);
 const legend=[['surgery','胰体尾+脾切除术'],['ag','AG化疗'],['s1','替吉奥']].map(([treatmentKey,label])=>'<span><i class="legend-swatch" style="background:'+MARKER_TREATMENT_COLORS[treatmentKey]+'"></i>'+esc(label)+'</span>').join('');
 return '<div class="chart-scroll"><svg viewBox="0 0 '+w+' '+h+'" class="chart trend-chart">'+bands+refMark+ticks+'<path d="'+d+'" fill="none" class="trend-line" stroke-width="3"/>'+circles+valueLabels+labels+'<text x="'+((w+l-rr)/2).toFixed(1)+'" y="'+(h-14)+'" text-anchor="middle" class="axis-title">日期</text><text x="20" y="'+((h+t-b)/2).toFixed(1)+'" transform="rotate(-90 20 '+((h+t-b)/2).toFixed(1)+')" text-anchor="middle" class="axis-title">'+esc(axisName)+'</text></svg></div><div class="chart-legend">'+legend+'</div>';
@@ -310,7 +317,7 @@ function summary(){appShell('<section class="card"><div class="section-head"><h2
 function bindChartTooltips(){
 const points=document.querySelectorAll('.chart-point');if(!points.length)return;
 let tip=document.getElementById('chartTooltip');if(!tip){tip=document.createElement('div');tip.id='chartTooltip';tip.className='chart-tooltip';tip.setAttribute('role','tooltip');document.body.appendChild(tip)}
-const content=p=>'<span class="tooltip-date">'+esc(p.dataset.date||'')+'</span><br><b>'+esc(p.dataset.metric||'指标')+'</b>：'+esc(p.dataset.value||'/')+(p.dataset.ref?'<br><span class="tooltip-ref">参考值：'+esc(p.dataset.ref)+'</span>':'');
+const content=p=>'<span class="tooltip-date">'+esc(p.dataset.date||'')+'</span><br><b>'+esc(p.dataset.metric||'指标')+'</b>：'+esc(p.dataset.value||'/')+(p.dataset.stage?'<br><span>阶段：'+esc(p.dataset.stage)+'</span>':'')+(p.dataset.ref?'<br><span class="tooltip-ref">参考值：'+esc(p.dataset.ref)+'</span>':'');
 const place=(clientX,clientY)=>{tip.classList.add('visible');const gap=14,pad=8,r=tip.getBoundingClientRect();let left=clientX+gap,top=clientY-r.height-gap;if(left+r.width>innerWidth-pad)left=clientX-r.width-gap;if(top<pad)top=clientY+gap;tip.style.left=Math.max(pad,left)+'px';tip.style.top=Math.max(pad,top)+'px'};
 const show=(p,e)=>{tip.innerHTML=content(p);if(e&&Number.isFinite(e.clientX))place(e.clientX,e.clientY);else{const r=p.getBoundingClientRect();place(r.left+r.width/2,r.top)}};
 const hide=()=>tip.classList.remove('visible');
