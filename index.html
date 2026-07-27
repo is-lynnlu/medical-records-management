@@ -93,6 +93,29 @@ b,strong{font-weight:400!important}
 .calendar-meta-row .calendar-legend{align-items:flex-end;margin:0}
 .calendar-meta-row .calendar-actions{align-items:flex-end;margin:0}
 @media(max-width:900px){.calendar-meta-row{align-items:stretch;flex-direction:column-reverse}.calendar-meta-row .calendar-actions{width:100%}}
+
+/* Warm medical-chart visual system */
+body{background:#f5f0ea}
+.card{background:#fffcf8}
+.gridline{stroke:#ede9e3;stroke-width:1}
+.treatment-band{opacity:.62}
+.marker-line,.trend-line{stroke:#7a9cb8;stroke-linecap:round;stroke-linejoin:round}
+.marker-chart .chart-point,.trend-chart .chart-point{fill:#fffcf8;stroke:#7a9cb8;stroke-width:3px}
+.marker-chart .point-high,.trend-chart .point-high,.marker-chart .point-low,.trend-chart .point-low{stroke:#c0614a}
+.marker-value-label{fill:#7a6a60;font-size:11px;font-weight:500;paint-order:stroke;stroke:#fffcf8;stroke-width:3px;stroke-linejoin:round}
+.marker-value-label.value-abnormal{fill:#c0614a;font-weight:800}
+.marker-ref-label{fill:#c0614a;font-size:12px;font-weight:700}
+.marker-threshold{stroke:#c0614a;stroke-dasharray:6 6;stroke-width:1.5;opacity:.75}
+.axis-label,.axis-title{fill:#8f8175}
+.axis-title{font-size:12px;font-weight:700}
+.chart-legend{gap:24px;color:#7a6a60}
+.chart-legend span{gap:7px}
+.legend-swatch{width:14px;height:14px;border-radius:4px;border:2px solid currentColor}
+.chart-legend span:nth-child(1) .legend-swatch{color:#dfa84c}
+.chart-legend span:nth-child(2) .legend-swatch{color:#9877c4}
+.chart-legend span:nth-child(3) .legend-swatch{color:#62ad85}
+.chart-point{cursor:crosshair}
+.chart-point:hover,.chart-point:focus{filter:drop-shadow(0 0 3px rgba(122,156,184,.55));outline:none}
 </style>
 </head>
 <body><div id="root"></div>
@@ -164,7 +187,7 @@ function listItems(items,empty='未记录'){return '<ul>'+(items.length?items:[e
 function therapyPeriod(p){const rows=rec(null).filter(r=>inPeriod(r,p)).sort((a,b)=>displayDate(a).localeCompare(displayDate(b)));const doses=doseItems(rows,p), cycles=cycleItems(rows,p), events=eventItems(rows,p);return '<article class="therapy-period"><div class="therapy-date">'+esc(p.label)+'</div><div class="therapy-axis"><span class="therapy-dot"></span></div><details class="therapy-body"><summary><div class="therapy-summary"><div class="therapy-meta"><span class="pill">'+esc(p.kind)+'</span>'+(p.note?'<span class="pill">'+esc(p.note)+'</span>':'')+'</div><h3>'+esc(p.name)+'</h3></div><span class="therapy-expand"></span></summary><div class="therapy-grid"><div class="therapy-box"><h4>治疗方案/剂量</h4>'+listItems(doses)+'</div><div class="therapy-box"><h4>周期/用药时间</h4>'+listItems(cycles,'暂无化疗/用药日记录')+'</div><div class="therapy-box"><h4>事件与处理</h4>'+listItems(events,'暂无特殊事件记录')+'</div></div></details></article>'}
 function timeline(){appShell('<section class="card"><div class="section-head"><div><h2>治疗时间线</h2><p class="subtle">按治疗阶段汇总方案、剂量、周期时间点和重要事件。</p></div></div><div class="therapy-timeline">'+THERAPY_PERIODS.slice().reverse().map(therapyPeriod).join('')+'</div></section>')}
 function dateMs(d){return new Date(d+'T00:00:00').getTime()}
-const MARKER_TREATMENT_COLORS={surgery:'#f2c66d',ag:'#c9a5d8',s1:'#b8f0b8',other:'#f7c7d2'};
+const MARKER_TREATMENT_COLORS={surgery:'#fde8c8',ag:'#e8dff5',s1:'#d3ede0',other:'#f5f0ea'};
 function markerTreatmentKey(p){if(p.kind==='手术')return 'surgery';if(/AG/.test(p.name))return 'ag';if(/替吉奥/.test(p.name))return 's1';return 'other'}
 function markerBandLabel(p){const k=p.treatmentKey||markerTreatmentKey(p);return k==='ag'?'AG化疗':k==='s1'?'替吉奥':p.name.replace(/（.*?）/g,'').replace(/^口服/,'')}
 function markerBandPeriods(startMs,endMs){return THERAPY_PERIODS.map(p=>{const treatmentKey=markerTreatmentKey(p);return {...p,treatmentKey,color:MARKER_TREATMENT_COLORS[treatmentKey]||MARKER_TREATMENT_COLORS.other}}).map(p=>{const s=Math.max(dateMs(p.start),startMs),e=Math.min(dateMs(p.end==='9999-12-31'?new Date(endMs).toISOString().slice(0,10):p.end),endMs);return {...p,s,e}}).filter(p=>p.e>=p.s)}
@@ -229,7 +252,7 @@ const box={left:labelX-labelW/2-3,right:labelX+labelW/2+3,top:labelY-13,bottom:l
 const overlaps=placed.some(other=>!(box.right<other.left||box.left>other.right||box.bottom<other.top||box.top>other.bottom));
 if(overlaps)return '';
 placed.push(box);
-return '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="middle" class="marker-value-label">'+esc(value)+'</text>';
+return '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="middle" class="marker-value-label'+(/^(high|low)$/.test(p.st)?' value-abnormal':'')+'">'+esc(value)+'</text>';
 }).join('');
 }
 function trendChart(rows,key,axisName=key){
@@ -248,8 +271,8 @@ const ticks=[0,.25,.5,.75,1].map(g=>{const v=min+(max-min)*g;return '<line x1="'
 let refMark='';
 if(bounds){
 if(Number.isFinite(bounds.low)&&Number.isFinite(bounds.high)){
-const bandY=y(bounds.high),bandH=Math.max(1,y(bounds.low)-y(bounds.high)),labelY=bandY+bandH/2+4;
-refMark='<rect x="'+l+'" y="'+bandY+'" width="'+(w-l-rr)+'" height="'+bandH+'" class="ref-band"><title>参考范围：'+bounds.low+'–'+bounds.high+'</title></rect><text x="'+(w-rr+14)+'" y="'+labelY.toFixed(1)+'" class="marker-ref-label">参考值：'+esc(defaultRef(key))+'</text>';
+const highY=y(bounds.high),lowY=y(bounds.low),labelY=(highY+lowY)/2+4;
+refMark='<line x1="'+l+'" x2="'+(w-rr)+'" y1="'+highY+'" y2="'+highY+'" class="marker-threshold"><title>参考值上限：'+bounds.high+'</title></line><line x1="'+l+'" x2="'+(w-rr)+'" y1="'+lowY+'" y2="'+lowY+'" class="marker-threshold"><title>参考值下限：'+bounds.low+'</title></line><text x="'+(w-rr+14)+'" y="'+labelY.toFixed(1)+'" class="marker-ref-label">参考值：'+esc(defaultRef(key))+'</text>';
 }else{
 const v=Number.isFinite(bounds.high)?bounds.high:bounds.low;
 if(Number.isFinite(v))refMark='<line x1="'+l+'" x2="'+(w-rr)+'" y1="'+y(v)+'" y2="'+y(v)+'" class="marker-threshold"><title>参考界值：'+v+'</title></line><text x="'+(w-rr+14)+'" y="'+(y(v)+4).toFixed(1)+'" class="marker-ref-label">参考值：'+esc(defaultRef(key))+'</text>';
@@ -259,13 +282,12 @@ const step=Math.max(1,Math.ceil(pts.length/6));
 const labels=pts.map((p,i)=>(i%step===0||i===pts.length-1)?'<text x="'+x(i).toFixed(1)+'" y="'+(h-b+20)+'" text-anchor="middle" class="axis-label">'+p.date.slice(2,7)+'</text>':'').join('');
 const circles=pts.map((p,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="4.5" tabindex="0" class="chart-point point-'+(p.st==='high'?'high':p.st==='low'?'low':'normal')+'" data-date="'+esc(p.date)+'" data-metric="'+esc(axisName)+'" data-value="'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'" data-ref="'+esc(p.ref||'')+'"><title>'+p.date+'：'+p.raw+(p.ref?'；参考 '+p.ref:'')+'</title></circle>').join('');
 const valueLabels=nonOverlappingValueLabels(pts,x,y);
-const legendPeriods=markerBandPeriods(startMs,endMs).filter((p,i,a)=>a.findIndex(x=>x.treatmentKey===p.treatmentKey)===i);
-const legend=legendPeriods.map(p=>'<span><i class="legend-swatch" style="background:'+p.color+'"></i>'+esc(markerBandLabel(p))+'</span>').join('');
+const legend=[['surgery','胰体尾+脾切除术'],['ag','AG化疗'],['s1','替吉奥']].map(([treatmentKey,label])=>'<span><i class="legend-swatch" style="background:'+MARKER_TREATMENT_COLORS[treatmentKey]+'"></i>'+esc(label)+'</span>').join('');
 return '<div class="chart-scroll"><svg viewBox="0 0 '+w+' '+h+'" class="chart trend-chart">'+bands+refMark+ticks+'<path d="'+d+'" fill="none" class="trend-line" stroke-width="3"/>'+circles+valueLabels+labels+'<text x="'+((w+l-rr)/2).toFixed(1)+'" y="'+(h-14)+'" text-anchor="middle" class="axis-title">日期</text><text x="20" y="'+((h+t-b)/2).toFixed(1)+'" transform="rotate(-90 20 '+((h+t-b)/2).toFixed(1)+')" text-anchor="middle" class="axis-title">'+esc(axisName)+'</text></svg></div><div class="chart-legend">'+legend+'</div>';
 }
 function chart(rows,key){return trendChart(rows,key,key)}
 function labs(){const allRows=rec(['lab']).filter(hasLabResults), keys=labKeys(), rows=allRows.filter(inLabRange);if(!keys.includes(state.labMetric))state.labMetric=keys[0]||'WBC 白细胞';const header='<tr><th><span class="lab-cn">日期</span><span class="lab-abbr">Date</span><span class="lab-ref">/</span></th>'+keys.map(labHeaderCell).join('')+'<th><span class="lab-cn">备注</span><span class="lab-abbr">Note</span><span class="lab-ref">/</span></th></tr>';const body=[...rows].reverse().map(r=>'<tr><td>'+esc(r.date)+'</td>'+keys.map(k=>'<td>'+metricCell(metric(r,[k]),k)+'</td>').join('')+'<td>'+esc(labRemark(r))+'</td></tr>').join('')||'<tr><td colspan="'+(keys.length+2)+'">所选时间段内没有血检结果</td></tr>';appShell('<section class="card"><div class="section-head"><h2>血液检查趋势</h2><select id="labMetric">'+keys.map(k=>'<option '+(k===state.labMetric?'selected':'')+'>'+esc(k)+'</option>').join('')+'</select></div>'+chart(rows,state.labMetric)+labTableToolbar(rows,allRows.length)+'<div class="table-wrap"><table class="lab-table"><thead>'+header+'</thead><tbody>'+body+'</tbody></table></div></section>')}
-function markers(){const allRows=rec(['marker']), keys=markerKeys(), rows=allRows.filter(inMarkerRange);if(!keys.includes(state.markerMetric))state.markerMetric=keys.find(k=>/CA19/.test(k))||keys[0]||'CA19-9';const header='<tr><th><span class="lab-cn">日期</span><span class="lab-abbr">Date</span><span class="lab-ref">/</span></th>'+keys.map(markerHeaderCell).join('')+'<th><span class="lab-cn">肿标监测周期</span><span class="lab-abbr">Cycle</span><span class="lab-ref">/</span></th></tr>';const body=[...rows].reverse().map(r=>'<tr><td>'+esc(r.date)+'</td>'+keys.map(k=>{const m=metric(r,[k]);return '<td>'+esc(labDisplayValue(m))+' '+badge(m?.raw,markerStatus(k,m?.raw))+'</td>'}).join('')+'<td>'+esc(markerCycle(r))+'</td></tr>').join('')||'<tr><td colspan="'+(keys.length+2)+'">所选时间段内没有肿瘤标志物记录</td></tr>';appShell('<section class="card"><div class="section-head"><h2>肿瘤标志物趋势</h2><select id="markerMetric">'+keys.map(k=>'<option '+(k===state.markerMetric?'selected':'')+'>'+esc(k)+'</option>').join('')+'</select></div>'+markerChart(rows,state.markerMetric)+markerTableToolbar(rows,allRows.length)+'<div class="table-wrap"><table class="lab-table"><thead>'+header+'</thead><tbody>'+body+'</tbody></table></div></section>')}
+function markers(){const allRows=rec(['marker']), keys=markerKeys(), rows=allRows.filter(inMarkerRange);if(!keys.includes(state.markerMetric))state.markerMetric=keys.find(k=>/CA19/.test(k))||keys[0]||'CA19-9';const header='<tr><th><span class="lab-cn">日期</span><span class="lab-abbr">Date</span><span class="lab-ref">/</span></th>'+keys.map(markerHeaderCell).join('')+'<th><span class="lab-cn">肿标监测周期</span><span class="lab-abbr">Cycle</span><span class="lab-ref">/</span></th></tr>';const body=[...rows].reverse().map(r=>'<tr><td>'+esc(r.date)+'</td>'+keys.map(k=>{const m=metric(r,[k]);return '<td>'+esc(labDisplayValue(m))+' '+badge(m?.raw,markerStatus(k,m?.raw))+'</td>'}).join('')+'<td>'+esc(markerCycle(r))+'</td></tr>').join('')||'<tr><td colspan="'+(keys.length+2)+'">所选时间段内没有肿瘤标志物记录</td></tr>';appShell('<section class="card"><div class="section-head"><h2>肿瘤标志物趋势</h2><select id="markerMetric">'+keys.map(k=>'<option '+(k===state.markerMetric?'selected':'')+'>'+esc(k)+'</option>').join('')+'</select></div>'+trendChart(rows,state.markerMetric,markerCode(state.markerMetric))+markerTableToolbar(rows,allRows.length)+'<div class="table-wrap"><table class="lab-table"><thead>'+header+'</thead><tbody>'+body+'</tbody></table></div></section>')}
 function imaging(){const rows=imagingRows().filter(r=>(!state.imagingStart||r.date>=state.imagingStart)&&(!state.imagingEnd||r.date<=state.imagingEnd));const filters='<div class="lab-filter"><label>开始日期<input id="imagingStart" type="date" value="'+esc(state.imagingStart)+'"></label><span>～</span><label>结束日期<input id="imagingEnd" type="date" value="'+esc(state.imagingEnd)+'"></label><button class="secondary" id="imagingRangeReset">重置</button></div>';const list=[...rows].reverse().map(r=>'<article class="record"><div class="record-top"><span class="date">'+esc(r.date)+'</span><span class="pill">影像</span></div><h3>'+esc(r.title)+'</h3><details open><summary>查看摘要/报告</summary><p class="preline">'+esc(imagingReportText(r.details||r.summary||''))+'</p></details></article>').join('')||'<p class="empty">所选时间段内没有影像报告</p>';appShell('<section class="card"><div class="section-head"><h2>影像随访</h2>'+filters+'</div><div class="list">'+list+'</div></section>')}
 function calendarKey(year,month,day){return year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0')}
 function addOralCourseToCalendar(startDate,courseNo){const start=new Date(startDate+'T12:00:00');for(let day=1;day<=14;day++){const date=new Date(start);date.setDate(start.getDate()+day-1);const key=calendarKey(date.getFullYear(),date.getMonth()+1,date.getDate()),label='进口替吉奥 D'+day;CALENDAR_DATA.events[key]=[...(CALENDAR_DATA.events[key]||[]).filter(x=>x!==label),label]}}
