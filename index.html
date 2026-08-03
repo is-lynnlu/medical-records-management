@@ -397,6 +397,7 @@ const bindBase=bind;bind=function(){bindBase();const cy=document.getElementById(
 cleanSurgeryText=function(value){
   return String(value||'')
     .replace(/(?:遂\s*继续\s*行\s*胰体尾癌根治术[。．.]?)/g,'')
+    .replace(/考虑胰腺癌伴肝转移[；;]/g,'考虑胰腺癌伴肝转移。')
     .replace(/[，,]\s*。/g,'。')
     .replace(/\n{3,}/g,'\n\n')
     .trim();
