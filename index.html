@@ -138,6 +138,8 @@ body{background:#f5f0ea}
 .range-popover .range-month-select{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;min-width:0;max-width:100%}
 .range-popover .range-month-select select{box-sizing:border-box;flex:0 1 88px;width:88px!important;min-width:0!important;max-width:100%!important;padding:4px 6px!important;border-radius:6px!important}
 .range-popover .range-month-select select[data-range-jump="month"]{flex-basis:66px;width:66px!important}
+
+.lab-number-high{color:var(--red)}.lab-number-low{color:var(--green)}
 </style>
 </head>
 <body><div id="root"></div>
@@ -368,7 +370,7 @@ function labKeys(){const counts=labMetricCounts();return metricKeys('lab').filte
 function labRemark(r){const m=metric(r,['备注']);return m?.raw||m?.value||''}
 function labHeaderCell(k){const parts=String(k||'').split(/\s+/), abbr=parts.length>1?parts[0]:'', cn=parts.length>1?parts.slice(1).join(' '):String(k||''), ref=displayRef(null,k)||'/';return '<th><span class="lab-cn">'+esc(cn)+'</span><span class="lab-abbr">'+esc(abbr)+'</span><span class="lab-ref">'+esc(ref)+'</span></th>'}
 function labDisplayValue(m){const raw=String(m?.raw||m?.value||'').trim();if(!raw)return '';return raw.replace(/[↑↓]/g,'').replace(/\s*(?:×10\^9\/L|x10\^9\/L|10\^9\/L|mmol\/L|U\/L|IU\/L|ng\/mL|ng\/ml|pg\/mL|pg\/ml|g\/L|g\/l|mmHg|次\/分|℃|kg|cm|mL|ml)\s*$/i,'').replace(/\s*[a-zA-Zµμ\/]+\s*$/,'').trim()}
-function metricCell(m,key){if(!m)return '';const st=metricStatus(m,key), raw=m?.raw||m?.value;return esc(labDisplayValue(m))+' '+badge(raw,st)}
+function metricCell(m,key){if(!m)return '';const st=metricStatus(m,key);return '<span'+(st==='high'||st==='low'?' class="lab-number-'+st+'" title="'+(st==='high'?'偏高':'偏低')+'"':'')+'>'+esc(labDisplayValue(m))+'</span>'}
 function hasLabResults(r){return Array.isArray(r.metrics)&&r.metrics.some(m=>m.key!=='备注'&&String(m.value||'').trim())}
 let openRangePicker='',rangeView={};
 function rangeValue(scope){return[state[scope+'Start']||'',state[scope+'End']||'']}
