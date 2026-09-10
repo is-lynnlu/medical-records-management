@@ -225,18 +225,46 @@ function reportSentences(text){return String(text||'').replace(/【(?:胸部|腹
 const COMPARE_FINDINGS=[
 {name:'右肺中叶结节',re:/(?:原)?右肺中叶[^。；;\n]{0,140}/},
 {name:'双肺其他小、微结节',re:/双肺多发小、?微结节[^。；;\n]{0,100}/},
-{name:'肝右叶稍低密度结节',re:/肝右叶稍低密度结节[^。；;\n]{0,140}/},
-{name:'肝内多发动脉期强化灶',re:/肝内多发动脉期强化灶[^。；;\n]{0,100}/},
+{name:'肝右叶稍低密度结节',re:/肝右叶(?:稍)?低密度结节[^。；;\n]{0,140}/},
+{name:'肝内多发动脉期强化灶',re:/肝内多发动脉期(?:异常强化|强化灶)[^。；;\n]{0,100}/},
 {name:'左肾上腺增粗',re:/左肾上腺增粗[^。；;\n]{0,60}/},
-{name:'胃底壁增厚',re:/胃底壁增厚[^。；;\n]{0,70}/},
+{name:'胃底壁增厚',re:/胃底壁(?:略)?增厚[^。；;\n]{0,70}/},
 {name:'盆腔少量积液',re:/盆腔(?:见)?少量积液[^。；;\n]{0,50}/},
 {name:'门脉海绵样变',re:/门脉海绵样变[^。；;\n]{0,50}/},
 {name:'胰体尾、脾脏切除术后改变',re:/(?:胰腺)?体尾部?、?脾脏切除术后改变[^。；;\n]{0,50}/}
 ];
 function findingSize(text){const value=String(text||'').match(/(?:长径|直径|大小)?\s*约?\s*(\d+(?:\.\d+)?)\s*mm/i);return value?Number(value[1]):null}
 function findingState(text,rule){const source=String(text||''),match=source.match(rule.re);if(!match)return {mentioned:false,text:'',present:null,size:null};const value=match[0],notSeen=/(?:现已|本次)?未见|消失/.test(value);return {mentioned:true,text:value,present:!notSeen,size:notSeen?null:findingSize(value)}}
-function findingChanges(older,newer){const oldText=compareText(older),newText=compareText(newer),changes=[],unchanged=[],uncertain=[];COMPARE_FINDINGS.forEach(rule=>{const a=findingState(oldText,rule),b=findingState(newText,rule);if(!a.mentioned&&!b.mentioned)return;if(a.mentioned&&b.mentioned){if(a.present&&b.present===false){changes.push({kind:'improve',text:rule.name+'：由'+(a.size!=null?'约 '+a.size+' mm':'可见')+'变为未见。'});return}if(a.present===false&&b.present){changes.push({kind:'progress',text:rule.name+'：由未见变为可见'+(b.size!=null?'（约 '+b.size+' mm）':'')+'。'});return}if(a.present&&b.present&&a.size!=null&&b.size!=null){const ratio=b.size/a.size;if(ratio<=.8){changes.push({kind:'improve',text:rule.name+'：约 '+a.size+' mm → '+b.size+' mm，缩小约 '+Math.round((1-ratio)*100)+'%。'});return}if(ratio>=1.2){changes.push({kind:'progress',text:rule.name+'：约 '+a.size+' mm → '+b.size+' mm，增大约 '+Math.round((ratio-1)*100)+'%。'});return}unchanged.push(rule.name+'：约 '+a.size+' mm → '+b.size+' mm，大小基本相当。');return}unchanged.push(rule.name+'：两次报告均有记载，未见可直接量化的明显变化。');return}uncertain.push(rule.name+'：仅一份所选报告提及，不能据此判断为新增或消失。')});return {changes,unchanged,uncertain}}
-function compareAnalysis(older,newer){const notes=[],result=findingChanges(older,newer),improved=result.changes.filter(x=>x.kind==='improve'),progressed=result.changes.filter(x=>x.kind==='progress');notes.push('本次仅比较 '+older.date+' 与 '+newer.date+'；报告正文中自带的其他历史对比日期不作为本次判断基准。');if(older.title&&newer.title&&imagingTitle(older.title)!==imagingTitle(newer.title))notes.push('两次检查项目或范围不同，直接比较存在局限。');if(improved.length&&!progressed.length)notes.push('综合判断：从两份报告文字可直接核对的病灶变化看，整体较前明显改善；同时仍有部分征象保持稳定。');else if(improved.length&&progressed.length)notes.push('综合判断：同时存在改善与需关注的变化，不宜简单概括为“稳定”或“进展”。');else if(progressed.length)notes.push('综合判断：存在可直接核对的增大或新出现征象，建议结合医生阅片判断。');else if(result.unchanged.length)notes.push('综合判断：目前能直接对应的征象以基本稳定为主。');else notes.push('综合判断：两份报告缺少足够的同名、同部位客观描述，无法仅凭文字可靠判断趋势。');if(result.changes.length)notes.push('明确变化：'+result.changes.map(x=>x.text).join(' '));if(result.unchanged.length)notes.push('保持稳定：'+result.unchanged.join(' '));if(result.uncertain.length)notes.push('无法直接判断：'+result.uncertain.join(' '));const signals=progressed.length?[{kind:'progress',label:improved.length?'提示混合变化':'提示需关注变化'}]:improved.length?[{kind:'improve',label:'提示明显改善'}]:result.unchanged.length?[{kind:'stable',label:'提示基本稳定'}]:[{kind:'stable',label:'暂无法判断趋势'}];return {signals,notes}}
+function findingChanges(older,newer){
+const oldText=compareText(older),newText=compareText(newer),important=[],paired=[],unpaired=[];
+COMPARE_FINDINGS.forEach(rule=>{
+const a=findingState(oldText,rule),b=findingState(newText,rule);
+if(!a.mentioned&&!b.mentioned)return;
+const evidence=(date,x)=>date+'：“'+x.text+'”';
+if(a.mentioned&&!b.mentioned){
+const note=rule.name+'：'+evidence(older.date,a)+'；'+newer.date+'报告未再描述这一征象。未再描述不等于明确消失。';
+if(/肝右叶/.test(rule.name)&&/不除外转移|考虑转移|转移可能/.test(a.text))important.push('此前疑似肝转移结节未再描述：'+note+' 应重点核对原病灶的后续影像；与另述的肝内动脉期强化灶分开记录。');
+else unpaired.push(note);
+return;
+}
+if(!a.mentioned&&b.mentioned){unpaired.push(rule.name+'：'+evidence(newer.date,b)+'；较早所选报告未提及，不能仅据此认定为新发。');return;}
+let note=rule.name+'：'+evidence(older.date,a)+'；'+evidence(newer.date,b)+'。';
+if(/结节/.test(rule.name))note+=' 同部位或同名不保证是同一颗结节，不能直接把两次数值用于计算缩小、增大或判定消失。';
+if(/本次未见|消失|同前|变化不大|较前|新见|减轻/.test(b.text))note+=' 较新报告的变化措辞应结合该报告注明的对比日期理解，不能自动套用于本次选择的较早报告。';
+paired.push(note);
+});
+return {important,paired,unpaired};
+}
+function compareAnalysis(older,newer){
+const result=findingChanges(older,newer),notes=[];
+notes.push('本次整理 '+older.date+' 与 '+newer.date+' 的报告文字。报告中的“同前”“本次未见”等表述保留其原有对比背景，不自动视为相对本次所选较早报告的变化。');
+if(older.title&&newer.title&&imagingTitle(older.title)!==imagingTitle(newer.title))notes.push('两次检查项目或范围不同，直接比较存在局限。');
+if(result.important.length)notes.push('重点随访变化：'+result.important.join(' '));
+notes.push('综合结论：'+(result.important.length?'较新报告未再描述此前提示转移可能的肝右叶结节，这一描述变化值得重点关注，但尚不足以确认病灶消失。':'以下列出两份报告的对应描述与未再提及事项。')+' 本对比不根据文字遗漏、同名结节的尺寸或其他历史对比结论，直接判断整体改善、稳定或进展。');
+if(result.paired.length)notes.push('两份报告对应描述：'+result.paired.join(' '));
+if(result.unpaired.length)notes.push('仅一份报告描述的事项：'+result.unpaired.join(' '));
+return {signals:[{kind:'stable',label:result.important.length?'重点病灶需核对':'报告文字对照'}],notes};
+}
 function imagingCompareResult(rows){if(!state.imagingCompareReady)return'';const reportOne=rows.find(r=>r.date===state.imagingCompareOlder),reportTwo=rows.find(r=>r.date===state.imagingCompareNewer);if(!reportOne||!reportTwo)return'<div class="compare-result compare-empty">请选择两份有效报告后再进行对比。</div>';if(reportOne===reportTwo||reportOne.date===reportTwo.date)return'<div class="compare-result compare-empty">请选择两份不同的报告进行对比。</div>';const [older,newer]=[reportOne,reportTwo].sort((a,b)=>a.date.localeCompare(b.date));const analysis=compareAnalysis(older,newer);return '<div class="compare-result"><div class="compare-result-head"><div><h3>报告对比结果</h3><p class="compare-disclaimer">系统已按检查日期自动识别先后。以下为依据报告文字生成的辅助整理，不替代医生阅片或临床判断。</p></div><div class="compare-flags">'+analysis.signals.map(x=>'<span class="compare-flag '+x.kind+'">'+esc(x.label)+'</span>').join('')+'</div></div><div class="compare-summary"><h4>综合变化分析</h4>'+analysis.notes.map(x=>'<p>'+esc(x)+'</p>').join('')+'</div><div class="compare-grid"><article class="compare-report"><h4>较早报告</h4><p class="date">'+esc(older.date)+' · '+esc(imagingTitle(older.title))+'</p>'+imagingReportHtml(compareText(older),older.title)+'</article><article class="compare-report"><h4>较新报告</h4><p class="date">'+esc(newer.date)+' · '+esc(imagingTitle(newer.title))+'</p>'+imagingReportHtml(compareText(newer),newer.title)+'</article></div></div>'}
 function imagingComparePanel(rows){if(!state.imagingCompareOpen)return'';const sorted=[...rows].sort((a,b)=>a.date.localeCompare(b.date));if(!state.imagingCompareOlder&&sorted.length>1)state.imagingCompareOlder=sorted.at(-2).date;if(!state.imagingCompareNewer&&sorted.length)state.imagingCompareNewer=sorted.at(-1).date;const options=selected=>sorted.map(r=>'<option value="'+esc(r.date)+'"'+(r.date===selected?' selected':'')+'>'+esc(compareReportLabel(r))+'</option>').join('');return '<section class="compare-panel"><div class="compare-controls"><label class="compare-field">报告一<select id="imagingCompareOlder">'+options(state.imagingCompareOlder)+'</select></label><label class="compare-field">报告二<select id="imagingCompareNewer">'+options(state.imagingCompareNewer)+'</select></label><button id="imagingCompareConfirm">确定</button></div>'+imagingCompareResult(sorted)+'</section>'}
 function reportRow(value){return '<div class="report-block"><b>报告：</b>'+imagingReportHtml(value)+'</div>'}function cleanSurgeryText(value){return String(value||'').replace(/[，,][ \t\n]*遂继续行[ \t\n]*胰体尾癌根治术[。．.]?/g,'。').replace(/遂继续行[ \t\n]*胰体尾癌根治术[。．.]?/g,'').replace(/\n{3,}/g,'\n\n').trim()}function currentStage(value){return String(value||'').replace(/(20\d{2})[年.\/](\d{1,2})[月.\/](\d{1,2})日?/g,(_,y,m,d)=>y+'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0')).replace(/(20\d{2}-\d{2}-\d{2})\s*[~～—–至]\s*(20\d{2}-\d{2}-\d{2}|至今)/g,'$1～$2').replace(/(20\d{2}-\d{2}-\d{2}～(?:20\d{2}-\d{2}-\d{2}|至今))[ \t]*(?:[：:][ \t]*)?\n[ \t]*(?:[：:][ \t]*)?(?=\S)/g,'$1：').replace(/AG化疗\s*[（(]8个周期(?:[，,]\s*16次)?[）)]/g,'AG化疗（8个周期，16次）').replace(/AG化疗\s*[（(](?:8\.5|9\.5)个周期(?:[，,]\s*17次)?[）)]/g,'AG化疗（8.5个周期，17次）').replace(/(^|\n)(\d{4}-\d{2}-\d{2}～(?:\d{4}-\d{2}-\d{2}|至今))(?![：:])/g,'$1$2：')}const MARKER_REFS={'CA242':25,'CEA':5.00,'CA19-9':34.00,'CA125':35.00,'CA72-4':9.8};
