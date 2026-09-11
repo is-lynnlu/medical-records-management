@@ -370,7 +370,7 @@ function labKeys(){const counts=labMetricCounts();return metricKeys('lab').filte
 function labRemark(r){const m=metric(r,['备注']);return m?.raw||m?.value||''}
 function labHeaderCell(k){const parts=String(k||'').split(/\s+/), abbr=parts.length>1?parts[0]:'', cn=parts.length>1?parts.slice(1).join(' '):String(k||''), ref=displayRef(null,k)||'/';return '<th><span class="lab-cn">'+esc(cn)+'</span><span class="lab-abbr">'+esc(abbr)+'</span><span class="lab-ref">'+esc(ref)+'</span></th>'}
 function labDisplayValue(m){const raw=String(m?.raw||m?.value||'').trim();if(!raw)return '';return raw.replace(/[↑↓]/g,'').replace(/\s*(?:×10\^9\/L|x10\^9\/L|10\^9\/L|mmol\/L|U\/L|IU\/L|ng\/mL|ng\/ml|pg\/mL|pg\/ml|g\/L|g\/l|mmHg|次\/分|℃|kg|cm|mL|ml)\s*$/i,'').replace(/\s*[a-zA-Zµμ\/]+\s*$/,'').trim()}
-function metricCell(m,key,forced){if(!m)return '';const st=forced||metricStatus(m,key);return '<span'+(st==='high'||st==='low'?' class="lab-number-'+st+'" title="'+(st==='high'?'偏高':'偏低')+'"':'')+'>'+(st==='high'?'↑ ':st==='low'?'↓ ':'')+esc(labDisplayValue(m))+'</span>'}
+function metricCell(m,key,forced){if(!m)return '';const st=forced||metricStatus(m,key);return '<span'+(st==='high'||st==='low'?' class="lab-number-'+st+'" title="'+(st==='high'?'偏高':'偏低')+'"':'')+'>'+(st==='high'?'↑':st==='low'?'↓':'')+esc(labDisplayValue(m))+'</span>'}
 function hasLabResults(r){return Array.isArray(r.metrics)&&r.metrics.some(m=>m.key!=='备注'&&String(m.value||'').trim())}
 let openRangePicker='',rangeView={};
 function rangeValue(scope){return[state[scope+'Start']||'',state[scope+'End']||'']}
