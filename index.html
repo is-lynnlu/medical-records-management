@@ -246,36 +246,27 @@ const COMPARE_FINDINGS=[
 function findingSize(text){const value=String(text||'').match(/(?:长径|直径|大小)?\s*约?\s*(\d+(?:\.\d+)?)\s*mm/i);return value?Number(value[1]):null}
 function findingState(text,rule){const source=String(text||''),match=source.match(rule.re);if(!match)return {mentioned:false,text:'',present:null,size:null};const value=match[0],notSeen=/(?:现已|本次)?未见|消失/.test(value);return {mentioned:true,text:value,present:!notSeen,size:notSeen?null:findingSize(value)}}
 function findingChanges(older,newer){
-const oldText=compareText(older),newText=compareText(newer),important=[],paired=[],unpaired=[];
-COMPARE_FINDINGS.forEach(rule=>{
-const a=findingState(oldText,rule),b=findingState(newText,rule);
-if(!a.mentioned&&!b.mentioned)return;
-const evidence=(date,x)=>date+'：“'+x.text+'”';
-if(a.mentioned&&!b.mentioned){
-const note=rule.name+'：'+evidence(older.date,a)+'；'+newer.date+'报告未再描述这一征象。未再描述不等于明确消失。';
-if(/肝右叶/.test(rule.name)&&/不除外转移|考虑转移|转移可能/.test(a.text))important.push('此前疑似肝转移结节未再描述：'+note+' 应重点核对原病灶的后续影像；与另述的肝内动脉期强化灶分开记录。');
-else unpaired.push(note);
-return;
-}
-if(!a.mentioned&&b.mentioned){unpaired.push(rule.name+'：'+evidence(newer.date,b)+'；较早所选报告未提及，不能仅据此认定为新发。');return;}
-let note=rule.name+'：'+evidence(older.date,a)+'；'+evidence(newer.date,b)+'。';
-if(/结节/.test(rule.name))note+=' 同部位或同名不保证是同一颗结节，不能直接把两次数值用于计算缩小、增大或判定消失。';
-if(/本次未见|消失|同前|变化不大|较前|新见|减轻/.test(b.text))note+=' 较新报告的变化措辞应结合该报告注明的对比日期理解，不能自动套用于本次选择的较早报告。';
-paired.push(note);
-});
-return {important,paired,unpaired};
+const oldText=compareText(older),newText=compareText(newer),groups={oldOnly:[],newOnly:[],paired:[]};
+COMPARE_FINDINGS.forEach(rule=>{const a=findingState(oldText,rule),b=findingState(newText,rule);if(!a.mentioned&&!b.mentioned)return;const row={name:rule.name,old:a.text||'未提及',new:b.text||'未提及'};groups[a.mentioned&&b.mentioned?'paired':a.mentioned?'oldOnly':'newOnly'].push(row)});
+const remaining=text=>reportSentences(text).map(s=>s.trim()).filter(s=>s&&!COMPARE_FINDINGS.some(rule=>rule.re.test(s)));
+const a=remaining(oldText),b=remaining(newText),normalize=s=>s.replace(/\s+/g,'');
+a.forEach(s=>{if(!b.some(t=>normalize(t)===normalize(s)))groups.oldOnly.push({name:'其他报告描述',old:s,new:'未见相同表述'})});
+b.forEach(s=>{if(!a.some(t=>normalize(t)===normalize(s)))groups.newOnly.push({name:'其他报告描述',old:'未见相同表述',new:s})});
+const metastasis=text=>reportSentences(text).map(s=>s.trim()).filter(s=>/转移/.test(s));
+return {...groups,metastasisOld:metastasis(oldText),metastasisNew:metastasis(newText)};
 }
 function compareAnalysis(older,newer){
-const result=findingChanges(older,newer),notes=[];
-notes.push('本次整理 '+older.date+' 与 '+newer.date+' 的报告文字。报告中的“同前”“本次未见”等表述保留其原有对比背景，不自动视为相对本次所选较早报告的变化。');
-if(older.title&&newer.title&&imagingTitle(older.title)!==imagingTitle(newer.title))notes.push('两次检查项目或范围不同，直接比较存在局限。');
-if(result.important.length)notes.push('重点随访变化：'+result.important.join(' '));
-notes.push('综合结论：'+(result.important.length?'较新报告未再描述此前提示转移可能的肝右叶结节，这一描述变化值得重点关注，但尚不足以确认病灶消失。':'以下列出两份报告的对应描述与未再提及事项。')+' 本对比不根据文字遗漏、同名结节的尺寸或其他历史对比结论，直接判断整体改善、稳定或进展。');
-if(result.paired.length)notes.push('两份报告对应描述：'+result.paired.join(' '));
-if(result.unpaired.length)notes.push('仅一份报告描述的事项：'+result.unpaired.join(' '));
-return {signals:[{kind:'stable',label:result.important.length?'重点病灶需核对':'报告文字对照'}],notes};
+const result=findingChanges(older,newer);
+return {signals:[{kind:'stable',label:'报告文字对照'}],result};
 }
-function imagingCompareResult(rows){if(!state.imagingCompareReady)return'';const reportOne=rows.find(r=>r.date===state.imagingCompareOlder),reportTwo=rows.find(r=>r.date===state.imagingCompareNewer);if(!reportOne||!reportTwo)return'<div class="compare-result compare-empty">请选择两份有效报告后再进行对比。</div>';if(reportOne===reportTwo||reportOne.date===reportTwo.date)return'<div class="compare-result compare-empty">请选择两份不同的报告进行对比。</div>';const [older,newer]=[reportOne,reportTwo].sort((a,b)=>a.date.localeCompare(b.date));const analysis=compareAnalysis(older,newer);return '<div class="compare-result"><div class="compare-result-head"><div><h3>报告对比结果</h3><p class="compare-disclaimer">系统已按检查日期自动识别先后。以下为依据报告文字生成的辅助整理，不替代医生阅片或临床判断。</p></div><div class="compare-flags">'+analysis.signals.map(x=>'<span class="compare-flag '+x.kind+'">'+esc(x.label)+'</span>').join('')+'</div></div><div class="compare-summary"><h4>综合变化分析</h4>'+analysis.notes.map(x=>'<p>'+esc(x)+'</p>').join('')+'</div><div class="compare-grid"><article class="compare-report"><h4>较早报告</h4><p class="date">'+esc(older.date)+' · '+esc(imagingTitle(older.title))+'</p>'+imagingReportHtml(compareText(older),older.title)+'</article><article class="compare-report"><h4>较新报告</h4><p class="date">'+esc(newer.date)+' · '+esc(imagingTitle(newer.title))+'</p>'+imagingReportHtml(compareText(newer),newer.title)+'</article></div></div>'}
+function compareSummaryHtml(analysis,older,newer){
+const r=analysis.result;
+const table=rows=>'<div class="table-wrap"><table><thead><tr><th>部位／项目</th><th>'+esc(older.date)+'</th><th>'+esc(newer.date)+'</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.old)+'</td><td>'+esc(x.new)+'</td></tr>').join('')+'</tbody></table></div>';
+const section=(title,rows)=>'<h4>'+title+'</h4>'+(rows.length?table(rows):'<p>无匹配项。</p>');
+const metastasis=[{name:'含“转移”的原文',old:r.metastasisOld.join('；')||'未提及“转移”',new:r.metastasisNew.join('；')||'未提及“转移”'}];
+return '<div class="compare-summary">'+section('转移相关描述（重点）',metastasis)+section('旧报告提及，新报告未提及',r.oldOnly)+section('新报告提及，旧报告未提及',r.newOnly)+section('两次均提及的部位／项目',r.paired)+'<p class="compare-disclaimer">以上比较报告文字：未提及不等于病灶消失或新发；“不除外转移”“未见转移”等限定语保留原意。同部位不保证同一病灶，“同前”等沿用原报告的对比日期。其他报告描述按原句列出，措辞不同也可能指同一事项。</p></div>';
+}
+function imagingCompareResult(rows){if(!state.imagingCompareReady)return'';const reportOne=rows.find(r=>r.date===state.imagingCompareOlder),reportTwo=rows.find(r=>r.date===state.imagingCompareNewer);if(!reportOne||!reportTwo)return'<div class="compare-result compare-empty">请选择两份有效报告后再进行对比。</div>';if(reportOne===reportTwo||reportOne.date===reportTwo.date)return'<div class="compare-result compare-empty">请选择两份不同的报告进行对比。</div>';const [older,newer]=[reportOne,reportTwo].sort((a,b)=>a.date.localeCompare(b.date));const analysis=compareAnalysis(older,newer);return '<div class="compare-result"><div class="compare-result-head"><div><h3>报告对比结果</h3><p class="compare-disclaimer">系统已按检查日期自动识别先后。以下为依据报告文字生成的辅助整理，不替代医生阅片或临床判断。</p></div><div class="compare-flags">'+analysis.signals.map(x=>'<span class="compare-flag '+x.kind+'">'+esc(x.label)+'</span>').join('')+'</div></div>'+compareSummaryHtml(analysis,older,newer)+'<div class="compare-grid"><article class="compare-report"><h4>较早报告</h4><p class="date">'+esc(older.date)+' · '+esc(imagingTitle(older.title))+'</p>'+imagingReportHtml(compareText(older),older.title)+'</article><article class="compare-report"><h4>较新报告</h4><p class="date">'+esc(newer.date)+' · '+esc(imagingTitle(newer.title))+'</p>'+imagingReportHtml(compareText(newer),newer.title)+'</article></div></div>'}
 function imagingComparePanel(rows){if(!state.imagingCompareOpen)return'';const sorted=[...rows].sort((a,b)=>a.date.localeCompare(b.date));if(!state.imagingCompareOlder&&sorted.length>1)state.imagingCompareOlder=sorted.at(-2).date;if(!state.imagingCompareNewer&&sorted.length)state.imagingCompareNewer=sorted.at(-1).date;const options=selected=>sorted.map(r=>'<option value="'+esc(r.date)+'"'+(r.date===selected?' selected':'')+'>'+esc(compareReportLabel(r))+'</option>').join('');return '<section class="compare-panel"><div class="compare-controls"><label class="compare-field">报告一<select id="imagingCompareOlder">'+options(state.imagingCompareOlder)+'</select></label><label class="compare-field">报告二<select id="imagingCompareNewer">'+options(state.imagingCompareNewer)+'</select></label><button id="imagingCompareConfirm">确定</button></div>'+imagingCompareResult(sorted)+'</section>'}
 function reportRow(value){return '<div class="report-block"><b>报告：</b>'+imagingReportHtml(value)+'</div>'}function cleanSurgeryText(value){return String(value||'').replace(/[，,][ \t\n]*遂继续行[ \t\n]*胰体尾癌根治术[。．.]?/g,'。').replace(/遂继续行[ \t\n]*胰体尾癌根治术[。．.]?/g,'').replace(/\n{3,}/g,'\n\n').trim()}function currentStage(value){return String(value||'').replace(/(20\d{2})[年.\/](\d{1,2})[月.\/](\d{1,2})日?/g,(_,y,m,d)=>y+'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0')).replace(/(20\d{2}-\d{2}-\d{2})\s*[~～—–至]\s*(20\d{2}-\d{2}-\d{2}|至今)/g,'$1～$2').replace(/(20\d{2}-\d{2}-\d{2}～(?:20\d{2}-\d{2}-\d{2}|至今))[ \t]*(?:[：:][ \t]*)?\n[ \t]*(?:[：:][ \t]*)?(?=\S)/g,'$1：').replace(/AG化疗\s*[（(]8个周期(?:[，,]\s*16次)?[）)]/g,'AG化疗（8个周期，16次）').replace(/AG化疗\s*[（(](?:8\.5|9\.5)个周期(?:[，,]\s*17次)?[）)]/g,'AG化疗（8.5个周期，17次）').replace(/(^|\n)(\d{4}-\d{2}-\d{2}～(?:\d{4}-\d{2}-\d{2}|至今))(?![：:])/g,'$1$2：')}const MARKER_REFS={'CA242':25,'CEA':5.00,'CA19-9':34.00,'CA125':35.00,'CA72-4':9.8};
 const MARKER_LABELS={'AFP':'甲胎蛋白','CA242':'糖类抗原','CEA':'癌胚抗原','CA19-9':'糖类抗原','CA125':'糖类抗原','CA72-4':'癌胚抗原','NSE':'神经元特异性烯醇化酶','VEGF':'血管内皮生长因子'};
