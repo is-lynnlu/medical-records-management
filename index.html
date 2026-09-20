@@ -218,7 +218,66 @@ const labs=[
 labs.push({key:'备注',value:'7.24~8.06 替吉奥'});
 return [{id:'lab-2026-08-20-pumch',date:'2026-08-20',type:'lab',title:'血常规、肝肾功能、血脂、炎症指标及糖化血红蛋白',source:'北京协和医院检验报告单',summary:'异常/标记：MONO% 10.1↑、BASO% 2.0↑、RBC 2.83↓、HGB 104↓、HCT 30.3↓、MCV 107.1↑、MCH 36.7↑、RDW-SD 80.8↑、RDW-CV 20.4↑、PCT 0.31↑、LDH 351↑。',metrics:labs},{id:'marker-2026-08-20-pumch',date:'2026-08-20',type:'marker',title:'肿瘤标志物（CEA、CA19-9、CA125）',source:'北京协和医院检验报告单',summary:'进口替吉奥疗程六 D7',metrics:[['CEA','癌胚抗原','CEA','10.4','≤5.0','ng/ml'],['CA19-9','糖类抗原19-9','CA19-9','286.0','≤34.0','U/ml'],['CA125','糖类抗原125','CA125','12.3','≤35.0','U/ml']].map(toMetric).concat({key:'肿标监测周期',value:'进口替吉奥疗程六 D7'})}]
 }
-function unlock(error=''){root.innerHTML='<main class="unlock"><form class="unlock-panel" id="unlock"><p class="eyebrow">Medical Records Management</p><h1>患者病历整理助手</h1><p>病历内容已加密。输入密码后，仅在当前浏览器中解密查看。</p><label class="field"><span>访问密码</span><input id="pw" type="password" autofocus></label>'+(error?'<p class="error">'+esc(error)+'</p>':'')+'<button>查看病历档案</button></form></main>';document.getElementById('unlock').onsubmit=async e=>{e.preventDefault();const pw=document.getElementById('pw').value;let seed;try{seed=await decrypt(pw)}catch{unlock('密码不正确，或浏览器不支持本地解密。');return}try{let updates=[],updateWarning='';try{updates=await decryptExternalUpdates(pw)}catch{updateWarning='部分更新数据未能解密，已先显示主病历内容。'}state.profile={...seed.profile,...Object.assign({},...updates.map(u=>u.profilePatch||{})),latestMarker:normalizeLatestMarkerSummary()};const merged=[...(seed.records||[]),...updates.flatMap(u=>u.records||[]),...aug20Records()];state.records=correctS1CoursePlan([...new Map(merged.map(record=>[record.id||[record.type,record.date,record.title].join('|'),record])).values()]);state.updateWarning=updateWarning;render()}catch(error){console.error('病历页面初始化失败：',error);unlock('病历已解密，但页面显示失败，请刷新后重试。')}}}
+function sep20Records(){
+const toMetric=([key,cn,abbr,value,ref,unit])=>({key,cn,abbr,value,ref,unit});
+const metrics=[
+['WBC 白细胞','白细胞','WBC','7.97','3.50–9.50','×10^9/L'],
+['LYM% 淋巴细胞百分比','淋巴细胞百分比','LYM%','16.4','20.0–40.0','%'],
+['MONO% 单核细胞百分比','单核细胞百分比','MONO%','8.2','3.0–8.0','%'],
+['NEUT% 中性粒细胞百分比','中性粒细胞百分比','NEUT%','71.6','50.0–75.0','%'],
+['EO% 嗜酸性粒细胞百分比','嗜酸性粒细胞百分比','EO%','3.3','0.5–5.0','%'],
+['BASO% 嗜碱性粒细胞百分比','嗜碱性粒细胞百分比','BASO%','0.5','0.0–1.0','%'],
+['LYM# 淋巴细胞绝对值','淋巴细胞绝对值','LYM#','1.31','0.80–4.00','×10^9/L'],
+['MONO# 单核细胞绝对值','单核细胞绝对值','MONO#','0.65','0.12–0.80','×10^9/L'],
+['NEUT3 中性粒细胞绝对值','中性粒细胞绝对值','NEUT#','5.71','2.00–7.50','×10^9/L'],
+['EO# 嗜酸性粒细胞绝对值','嗜酸性粒细胞绝对值','EO#','0.26','0.02–0.50','×10^9/L'],
+['BASO# 嗜碱性粒细胞绝对值','嗜碱性粒细胞绝对值','BASO#','0.04','0.00–0.10','×10^9/L'],
+['RBC 红细胞','红细胞','RBC','2.83','4.00–5.50','×10^12/L'],
+['HGB 血红蛋白','血红蛋白','HGB','106','120–160','g/L'],
+['HCT 红细胞压积','红细胞压积','HCT','29.4','35.0–50.0','%'],
+['MCHC 平均红细胞血红蛋白浓度','平均红细胞血红蛋白浓度','MCHC','361','320–360','g/L'],
+['MCV 平均红细胞体积','平均红细胞体积','MCV','103.9','82.0–97.0','fl'],
+['MCH 平均红细胞血红蛋白','平均红细胞血红蛋白','MCH','37.5','27.0–32.0','pg'],
+['RDW-SD 红细胞体积分布宽度','红细胞体积分布宽度（SD）','RDW-SD','75.5','39.0–46.0','fl'],
+['RDW-CV 红细胞体积分布宽度','红细胞体积分布宽度（CV）','RDW-CV','20.0','0.0–15.0','%'],
+['PLT 血小板','血小板','PLT','290','100–350','×10^9/L'],
+['PCT 血小板压积','血小板压积','PCT','0.27','0.11–0.28','%'],
+['PDW 血小板体积分布宽度','血小板体积分布宽度','PDW','9.6','9.0–17.0','fl'],
+['MPV 平均血小板体积','平均血小板体积','MPV','9.4','7.0–13.0','fl'],
+['P-LCR 大血小板比率','大血小板比率','P-LCR','20.0','13.0–43.0','%'],
+['ALT 丙氨酸氨基转移酶','丙氨酸氨基转移酶','ALT','16','9–50','U/L'],
+['TP 总蛋白','总蛋白','TP','73','60–85','g/L'],
+['ALB 白蛋白','白蛋白（BCG法）','ALB','42','35–52','g/L'],
+['A/G 白蛋白球蛋白比','白蛋白球蛋白比','A/G','1.4','1.0–2.5',''],
+['PA 前白蛋白','前白蛋白','PA','223','200–400','mg/L'],
+['TBIL 总胆红素','总胆红素','TBIL','17.8','5.1–22.2','μmol/L'],
+['DBIL 直接胆红素','直接胆红素','DBIL','6.0','≤6.8','μmol/L'],
+['GGT 谷氨酰转肽酶','谷氨酰转肽酶','GGT','29','10–60','U/L'],
+['ALP 碱性磷酸酶','碱性磷酸酶','ALP','115','45–125','U/L'],
+['AST 天门冬氨酸氨基转移酶','天门冬氨酸氨基转移酶','AST','26','15–40','U/L'],
+['LDH 乳酸脱氢酶','乳酸脱氢酶','LDH','343','0–250','U/L'],
+['K 钾','钾','K','4.2','3.5–5.5','mmol/L'],
+['NA 钠','钠','Na','138','135–145','mmol/L'],
+['CL 氯','氯','Cl','105','96–111','mmol/L'],
+['CO2 总二氧化碳','总二氧化碳','CO₂','28.4','20.0–34.0','mmol/L'],
+['CA 钙','钙','Ca','2.33','2.11–2.52','mmol/L'],
+['cCA 校正钙','校正钙','cCa','2.29','2.11–2.52','mmol/L'],
+['P 无机磷','无机磷','P','1.18','0.85–1.51','mmol/L'],
+['MG 镁','镁','Mg','0.90','0.70–1.10','mmol/L'],
+['CREA 肌酐','肌酐（酶法）','CREA','69','59–104','μmol/L'],
+['UREA 尿素','尿素','UREA','4.8','2.8–7.2','mmol/L'],
+['GLU 葡萄糖','葡萄糖','GLU','6.4','3.9–6.1','mmol/L'],
+['UA 尿酸','尿酸','UA','246','210–416','μmol/L'],
+['TC 总胆固醇','总胆固醇','TC','4.21','<5.2','mmol/L'],
+['TG 甘油三酯','甘油三酯','TG','0.60','<1.7','mmol/L'],
+['HDL-C 高密度脂蛋白胆固醇','高密度脂蛋白胆固醇','HDL-C','1.78','≥1.0','mmol/L'],
+['LDL-C 低密度脂蛋白胆固醇','低密度脂蛋白胆固醇','LDL-C','1.89','<3.4','mmol/L'],
+['non-HDL-C 非高密度脂蛋白胆固醇','非高密度脂蛋白胆固醇','non-HDL-C','2.43','<4.2','mmol/L']
+].map(toMetric);
+metrics.push({key:'备注',value:'进口替吉奥09.04~09.17'});
+return [{id:'lab-2026-09-20-pumch',date:'2026-09-20',type:'lab',title:'血常规、肝肾功能及血脂',source:'北京协和医院检验报告单',summary:'异常/标记：LYM% 16.4↓、MONO% 8.2↑、RBC 2.83↓、HGB 106↓、HCT 29.4↓、MCHC 361↑、MCV 103.9↑、MCH 37.5↑、RDW-SD 75.5↑、RDW-CV 20.0↑、LDH 343↑、GLU 6.4↑。',metrics}]
+}
+function unlock(error=''){root.innerHTML='<main class="unlock"><form class="unlock-panel" id="unlock"><p class="eyebrow">Medical Records Management</p><h1>患者病历整理助手</h1><p>病历内容已加密。输入密码后，仅在当前浏览器中解密查看。</p><label class="field"><span>访问密码</span><input id="pw" type="password" autofocus></label>'+(error?'<p class="error">'+esc(error)+'</p>':'')+'<button>查看病历档案</button></form></main>';document.getElementById('unlock').onsubmit=async e=>{e.preventDefault();const pw=document.getElementById('pw').value;let seed;try{seed=await decrypt(pw)}catch{unlock('密码不正确，或浏览器不支持本地解密。');return}try{let updates=[],updateWarning='';try{updates=await decryptExternalUpdates(pw)}catch{updateWarning='部分更新数据未能解密，已先显示主病历内容。'}state.profile={...seed.profile,...Object.assign({},...updates.map(u=>u.profilePatch||{})),latestMarker:normalizeLatestMarkerSummary()};const merged=[...(seed.records||[]),...updates.flatMap(u=>u.records||[]),...aug20Records(),...sep20Records()];state.records=correctS1CoursePlan([...new Map(merged.map(record=>[record.id||[record.type,record.date,record.title].join('|'),record])).values()]);state.updateWarning=updateWarning;render()}catch(error){console.error('病历页面初始化失败：',error);unlock('病历已解密，但页面显示失败，请刷新后重试。')}}}
 function ctTitle(value){return String(value||'').replace(/胸腹盆增强CT\+胰腺薄扫|增强CT/g,m=>m==='增强CT'?'胸腹盆增强CT+胰腺薄扫':m)}function normalizeRecord(r){const title=ctTitle(r.title),details=ctTitle(r.details);return title===r.title&&details===r.details?r:{...r,title,details}}function text(r){return [r.date,r.type,r.title,r.summary,r.details,r.source,(r.tags||[]).join(' '),(r.metrics||[]).map(m=>[m.key,m.cn,m.abbr,m.en,m.value,m.ref,m.unit].filter(Boolean).join(' ')).join(' ')].join(' ')}function rec(types){return state.records.map(normalizeRecord).filter(r=>!types||types.includes(r.type)).filter(r=>!state.q||text(r).toLowerCase().includes(state.q.toLowerCase())).sort((a,b)=>a.date.localeCompare(b.date))}function imagingRows(){return rec(['imaging']).filter(r=>!/治疗方案[：:]/.test(String(r.details||'')))}function latest(type){return (type==='imaging'?imagingRows():rec([type])).at(-1)}function latestWithMetrics(type){return rec([type]).filter(r=>Array.isArray(r.metrics)&&r.metrics.length>0).at(-1)||latest(type)}function num(v){const m=String(v||'').replace(/[↑↓,]/g,'').match(/-?\d+(\.\d+)?/);return m?Number(m[0]):null}function canonicalMetricKey(key){const s=String(key||'').trim();if(/^NEUT[#3]\b/i.test(s)||/中性粒细胞绝对值/.test(s))return 'NEUT3 中性粒细胞绝对值';return s}function canonicalMetric(m){if(!m)return m;const key=canonicalMetricKey(m.key);return key===m.key?m:{...m,key}}function metric(r,keys){const targets=(Array.isArray(keys)?keys:[keys]).map(canonicalMetricKey);for(const raw of r.metrics||[]){const m=canonicalMetric(raw);const hay=[m.key,m.cn,m.abbr,m.en].filter(Boolean).join(' ').toLowerCase();if(targets.some(k=>hay.includes(k.toLowerCase()))){return {...m,raw:m.value,value:num(m.value)}}}return null}function metricKeys(type){const set=new Set();rec([type]).forEach(r=>(r.metrics||[]).forEach(m=>set.add(type==='lab'?canonicalMetricKey(m.key):m.key)));return [...set]}
 function appShell(body){const p=state.profile,warning=state.updateWarning?'<div class="notice">'+esc(state.updateWarning)+'</div>':'';root.innerHTML='<main class="app"><header class="hero"><div><p class="eyebrow">本地病历档案 · 仅供个人查看</p><h1>'+esc(p.name||'患者')+'｜男｜61岁</h1><p class="subtle">按时间归档治疗、检查、影像、肿瘤标志物和复诊摘要。</p></div><div class="top-actions"><button class="secondary" id="print">打印 / 存 PDF</button></div></header><nav class="tabs">'+TABS.map(t=>'<button class="'+(state.tab===t[0]?'active':'')+'" data-tab="'+t[0]+'">'+t[1]+'</button>').join('')+'</nav><div class="content">'+warning+body+'</div><p class="footer">本页面仅供个人病历归档与复诊沟通，不替代医生诊断。</p></main>';bind()}
 function dateSafeText(value){return esc(value||'-').replace(/20\d{2}-\d{2}-\d{2}～(?:20\d{2}-\d{2}-\d{2}|至今)[：:]?|20\d{2}-\d{2}-\d{2}/g,m=>'<span class="'+(m.includes('～')?'date-range-token':'date-token')+'">'+m+'</span>')}
