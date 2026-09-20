@@ -400,9 +400,22 @@ let refMark='';
 if(bounds){const v=Number.isFinite(bounds.high)?bounds.high:bounds.low;if(Number.isFinite(v))refMark='<line x1="'+l+'" x2="'+(w-rr)+'" y1="'+y(v)+'" y2="'+y(v)+'" class="marker-threshold"><title>参考界值：'+v+'</title></line><text x="'+(w-rr+8)+'" y="'+(y(v)+4).toFixed(1)+'" class="marker-ref-label">参考值：'+esc(defaultRef(key))+'</text>'}
 const d=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+','+y(p.v).toFixed(1)).join(' ');
 const step=Math.max(1,Math.ceil(pts.length/6));
-const labels=pts.map((p,i)=>(i%step===0||i===pts.length-1)?'<text x="'+x(i).toFixed(1)+'" y="'+(h-b+20)+'" text-anchor="middle" class="axis-label">'+p.date.slice(2,7)+'</text>':'').join('');
+const tickIndexes=[];
+for(let i=0;i<pts.length;i+=step)tickIndexes.push(i);
+if(tickIndexes[tickIndexes.length-1]!==pts.length-1)tickIndexes.push(pts.length-1);
+const minTickGap=64,spacedTicks=[];
+tickIndexes.forEach(i=>{const prev=spacedTicks[spacedTicks.length-1];if(prev==null||x(i)-x(prev)>=minTickGap)spacedTicks.push(i);else if(i===pts.length-1)spacedTicks[spacedTicks.length-1]=i});
+const labels=spacedTicks.map(i=>'<text x="'+x(i).toFixed(1)+'" y="'+(h-b+20)+'" text-anchor="middle" class="axis-label">'+pts[i].date.slice(2,7)+'</text>').join('');
 const circles=pts.map((p,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="4.5" tabindex="0" class="chart-point point-'+(p.st==='high'?'high':p.st==='low'?'low':'normal')+'" data-date="'+esc(p.date)+'" data-metric="'+esc(markerCode(key))+'" data-value="'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'" data-ref="'+esc(p.ref||'')+'" data-stage="'+esc(treatmentStageOn(p.date))+'"></circle>').join('');
-const valueLabels=pts.map((p,i)=>'<text x="'+x(i).toFixed(1)+'" y="'+Math.max(14,y(p.v)-10).toFixed(1)+'" text-anchor="middle" class="marker-value-label">'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'</text>').join('');
+const placedValueLabels=[];
+const valueLabels=pts.map((p,i)=>{
+const value=labDisplayValue({raw:p.raw,value:p.v}),labelX=x(i),pointY=y(p.v),labelW=Math.max(18,[...value].length*7.2);
+const offsets=[-10,20,-28,38,-46,56],candidates=offsets.map(offset=>Math.max(t+14,Math.min(h-b-5,pointY+offset)));
+let labelY=candidates.find(candidate=>{const box={left:labelX-labelW/2-3,right:labelX+labelW/2+3,top:candidate-13,bottom:candidate+3};return !placedValueLabels.some(other=>!(box.right<other.left||box.left>other.right||box.bottom<other.top||box.top>other.bottom))});
+if(labelY==null)labelY=candidates[i%2?1:0];
+placedValueLabels.push({left:labelX-labelW/2-3,right:labelX+labelW/2+3,top:labelY-13,bottom:labelY+3});
+return '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="middle" class="marker-value-label">'+esc(value)+'</text>';
+}).join('');
 const axisName=markerCode(key);
 const legendPeriods=markerBandPeriods(startMs,endMs).filter((p,i,a)=>a.findIndex(x=>x.treatmentKey===p.treatmentKey)===i);
 const legend=legendPeriods.map(p=>'<span><i class="legend-swatch" style="background:'+p.color+'"></i>'+esc(markerBandLabel(p))+'</span>').join('');
