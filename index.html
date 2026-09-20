@@ -399,13 +399,9 @@ const ticks=[0,.25,.5,.75,1].map(g=>{const v=min+(max-min)*g;return '<line x1="'
 let refMark='';
 if(bounds){const v=Number.isFinite(bounds.high)?bounds.high:bounds.low;if(Number.isFinite(v))refMark='<line x1="'+l+'" x2="'+(w-rr)+'" y1="'+y(v)+'" y2="'+y(v)+'" class="marker-threshold"><title>参考界值：'+v+'</title></line><text x="'+(w-rr+8)+'" y="'+(y(v)+4).toFixed(1)+'" class="marker-ref-label">参考值：'+esc(defaultRef(key))+'</text>'}
 const d=pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+','+y(p.v).toFixed(1)).join(' ');
-const step=Math.max(1,Math.ceil(pts.length/6));
-const tickIndexes=[];
-for(let i=0;i<pts.length;i+=step)tickIndexes.push(i);
-if(tickIndexes[tickIndexes.length-1]!==pts.length-1)tickIndexes.push(pts.length-1);
-const minTickGap=64,spacedTicks=[];
-tickIndexes.forEach(i=>{const prev=spacedTicks[spacedTicks.length-1];if(prev==null||x(i)-x(prev)>=minTickGap)spacedTicks.push(i);else if(i===pts.length-1)spacedTicks[spacedTicks.length-1]=i});
-const labels=spacedTicks.map(i=>'<text x="'+x(i).toFixed(1)+'" y="'+(h-b+20)+'" text-anchor="middle" class="axis-label">'+pts[i].date.slice(2,7)+'</text>').join('');
+const tickMonthStep=6,timeTicks=[];
+for(let tickMs=startMs;tickMs<=endMs;){timeTicks.push(tickMs);const tickDate=new Date(tickMs),nextTick=new Date(tickDate.getFullYear(),tickDate.getMonth()+tickMonthStep,tickDate.getDate()).getTime();if(nextTick<=tickMs)break;tickMs=nextTick}
+const labels=timeTicks.map(tickMs=>{const tickDate=new Date(tickMs),label=String(tickDate.getFullYear()).slice(2)+'-'+String(tickDate.getMonth()+1).padStart(2,'0');return '<text x="'+xMs(tickMs).toFixed(1)+'" y="'+(h-b+20)+'" text-anchor="middle" class="axis-label">'+label+'</text>'}).join('');
 const circles=pts.map((p,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="4.5" tabindex="0" class="chart-point point-'+(p.st==='high'?'high':p.st==='low'?'low':'normal')+'" data-date="'+esc(p.date)+'" data-metric="'+esc(markerCode(key))+'" data-value="'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'" data-ref="'+esc(p.ref||'')+'" data-stage="'+esc(treatmentStageOn(p.date))+'"></circle>').join('');
 const placedValueLabels=[];
 const valueLabels=pts.map((p,i)=>{
