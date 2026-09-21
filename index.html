@@ -591,6 +591,10 @@ if(to<minTo)to=minTo
 start.value=Math.max(0,from);end.value=Math.min(100,to);
 w.style.setProperty('--range-from',start.value+'%');w.style.setProperty('--range-to',end.value+'%');
 selection.style.left=start.value+'%';selection.style.right=(100-Number(end.value))+'%';
+const rangeWidth=w.clientWidth,thumbSize=18,labelGap=4,fromRatio=Number(start.value)/100,toRatio=Number(end.value)/100;
+const fromCenter=thumbSize/2+(rangeWidth-thumbSize)*fromRatio,toCenter=thumbSize/2+(rangeWidth-thumbSize)*toRatio;
+startLabel.style.left=(fromCenter+thumbSize/2+labelGap)+'px';
+endLabel.style.right=(rangeWidth-toCenter+thumbSize/2+labelGap)+'px';
 startLabel.textContent=chartRangeDate(minMs+span*Number(start.value)/100);endLabel.textContent=chartRangeDate(minMs+span*Number(end.value)/100);
 };
 start.oninput=update;end.oninput=update;
