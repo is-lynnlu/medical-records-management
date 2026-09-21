@@ -523,8 +523,15 @@ CALENDAR_DATA.events['2026-09-13']=[...(CALENDAR_DATA.events['2026-09-13']||[]).
 CALENDAR_DATA.events['2026-09-19']=(CALENDAR_DATA.events['2026-09-19']||[]).filter(x=>x!=='输液港维护');
 CALENDAR_DATA.events['2026-09-20']=[...(CALENDAR_DATA.events['2026-09-20']||[]).filter(x=>x!=='查肿标'&&x!=='预约复诊'&&x!=='输液港维护'),'查肿标','预约复诊','输液港维护'];
 CALENDAR_DATA.events['2026-09-21']=[...(CALENDAR_DATA.events['2026-09-21']||[]).filter(x=>x!=='增强CT（西院）'),'增强CT（西院）'];
-CALENDAR_DATA.events['2026-11-25']=[...(CALENDAR_DATA.events['2026-11-25']||[]).filter(x=>x!=='约12月内分泌科号'),'约12月内分泌科号'];
-CALENDAR_DATA.events['2026-12-03']=[...(CALENDAR_DATA.events['2026-12-03']||[]).filter(x=>x!=='内分泌科'),'内分泌科'];
+CALENDAR_DATA.events['2026-10-02']=[...(CALENDAR_DATA.events['2026-10-02']||[]).filter(x=>x!=='约15号肿标'),'约15号肿标'];
+CALENDAR_DATA.events['2026-10-06']=[...(CALENDAR_DATA.events['2026-10-06']||[]).filter(x=>x!=='可开胸腺法新'),'可开胸腺法新'];
+CALENDAR_DATA.events['2026-10-14']=[...(CALENDAR_DATA.events['2026-10-14']||[]).filter(x=>x!=='约程大夫复查号'&&x!=='抢薛主任号'),'约程大夫复查号','抢薛主任号'];
+CALENDAR_DATA.events['2026-10-15']=[...(CALENDAR_DATA.events['2026-10-15']||[]).filter(x=>x!=='查肿标、增强CT'),'查肿标、增强CT'];
+CALENDAR_DATA.events['2026-10-21']=[...(CALENDAR_DATA.events['2026-10-21']||[]).filter(x=>x!=='薛主任'),'薛主任'];
+CALENDAR_DATA.events['2026-11-13']=[...(CALENDAR_DATA.events['2026-11-13']||[]).filter(x=>x!=='约输液港维护'),'约输液港维护'];
+CALENDAR_DATA.events['2026-11-20']=[...(CALENDAR_DATA.events['2026-11-20']||[]).filter(x=>x!=='输液港维护'),'输液港维护'];
+CALENDAR_DATA.events['2026-11-25']=[...(CALENDAR_DATA.events['2026-11-25']||[]).filter(x=>x!=='约12月内分泌科号'&&x!=='约1月内分泌科号'),'约1月内分泌科号'];
+CALENDAR_DATA.events['2026-12-03']=[...(CALENDAR_DATA.events['2026-12-03']||[]).filter(x=>x!=='内分泌科'&&x!=='内分泌科号'),'内分泌科号'];
 const S1_RANGES=[['2024-12-11','2024-12-24'],['2025-01-02','2025-01-15'],['2025-01-23','2025-02-05'],['2025-02-14','2025-02-27'],['2025-03-07','2025-03-20'],['2025-04-10','2025-04-23'],['2025-05-01','2025-05-14'],['2025-05-22','2025-06-04'],['2025-06-12','2025-06-25'],['2025-07-03','2025-07-16'],['2026-04-29','2026-05-12'],['2026-05-20','2026-06-02'],['2026-06-10','2026-06-23'],['2026-07-02','2026-07-15'],['2026-07-24','2026-08-06'],['2026-08-14','2026-08-27'],['2026-09-04','2026-09-17']];
 function calendarDayClass(key,events){const now=new Date(),today=calendarKey(now.getFullYear(),now.getMonth()+1,now.getDate());if(key>today&&events.length)return' future';if(S1_RANGES.some(([a,b])=>key>=a&&key<=b))return' treatment-s1';if(events.some(x=>/C\d+(?:D|W)\d+\s*化疗日/i.test(x)))return' treatment-ag';return''}
 function isCalendarRestEvent(value){return /^(?:疗程.+后)?休息.*$/.test(String(value||'').trim())||/^休$/.test(String(value||'').trim())}
