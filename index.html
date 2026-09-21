@@ -466,7 +466,7 @@ placed.push({left:labelX-labelW/2-3,right:labelX+labelW/2+3,top:labelY-13,bottom
 return '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="middle" class="marker-value-label'+(/^(high|low)$/.test(p.st)?' value-abnormal':'')+'">'+esc(value)+'</text>';
 }).join('');
 }
-function chartRangeDate(ms){const d=new Date(ms);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function chartRangeDate(ms){const d=new Date(ms);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
 function chartRangeControl(scope,allPts,from,to){
 const minMs=allPts[0].ms,maxMs=allPts[allPts.length-1].ms,label=scope==='lab'?'血液检查':'肿瘤标志物';
 const fromMs=minMs+(maxMs-minMs)*from/100,toMs=minMs+(maxMs-minMs)*to/100;
