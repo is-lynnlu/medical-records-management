@@ -569,15 +569,29 @@ const queue=()=>{if(!frame)frame=requestAnimationFrame(update)};
 window.addEventListener('scroll',queue,{signal,passive:true});window.addEventListener('resize',()=>{entries.forEach(e=>e.size());queue()},{signal,passive:true});update();
 stickyTableHeaderCleanup=()=>{controller.abort();if(frame)cancelAnimationFrame(frame);entries.forEach(e=>e.floating.remove())}
 }
+function chartRangeShiftMonths(ms,months){
+const d=new Date(ms),day=d.getDate();
+d.setDate(1);d.setMonth(d.getMonth()+months);
+d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));
+return d.getTime()
+}
 function bindChartRanges(){
 document.querySelectorAll('[data-chart-range]').forEach(w=>{
-const scope=w.dataset.chartRange,start=w.querySelector('.chart-range-start'),end=w.querySelector('.chart-range-end'),selection=w.querySelector('.chart-range-selection'),startLabel=w.querySelector('.chart-range-start-date'),endLabel=w.querySelector('.chart-range-end-date'),minMs=Number(w.dataset.minMs),maxMs=Number(w.dataset.maxMs);
+const scope=w.dataset.chartRange,start=w.querySelector('.chart-range-start'),end=w.querySelector('.chart-range-end'),selection=w.querySelector('.chart-range-selection'),startLabel=w.querySelector('.chart-range-start-date'),endLabel=w.querySelector('.chart-range-end-date'),minMs=Number(w.dataset.minMs),maxMs=Number(w.dataset.maxMs),span=Math.max(1,maxMs-minMs);
+const pct=ms=>Math.max(0,Math.min(100,(ms-minMs)/span*100));
 const update=()=>{
-let from=Number(start.value),to=Number(end.value);
-if(from>to-2){if(document.activeElement===start)from=to-2;else to=from+2;start.value=Math.max(0,from);end.value=Math.min(100,to)}
+let from=Number(start.value),to=Number(end.value),fromMs=minMs+span*from/100,toMs=minMs+span*to/100;
+if(document.activeElement===start){
+const maxFrom=Math.floor(pct(chartRangeShiftMonths(toMs,-7)));
+if(from>maxFrom)from=maxFrom
+}else{
+const minTo=Math.ceil(pct(chartRangeShiftMonths(fromMs,7)));
+if(to<minTo)to=minTo
+}
+start.value=Math.max(0,from);end.value=Math.min(100,to);
 w.style.setProperty('--range-from',start.value+'%');w.style.setProperty('--range-to',end.value+'%');
 selection.style.left=start.value+'%';selection.style.right=(100-Number(end.value))+'%';
-const span=maxMs-minMs;startLabel.textContent=chartRangeDate(minMs+span*Number(start.value)/100);endLabel.textContent=chartRangeDate(minMs+span*Number(end.value)/100);
+startLabel.textContent=chartRangeDate(minMs+span*Number(start.value)/100);endLabel.textContent=chartRangeDate(minMs+span*Number(end.value)/100);
 };
 start.oninput=update;end.oninput=update;
 const apply=()=>{state[scope+'ChartFrom']=Number(start.value);state[scope+'ChartTo']=Number(end.value);render()};
