@@ -50,6 +50,11 @@ b,strong{font-weight:400!important}
 .metric-title{display:block!important;min-height:2.2em!important;font-weight:400!important;border-bottom:1px solid #e5d8cd!important;padding-bottom:6px!important;margin-bottom:8px!important;white-space:nowrap!important}
 .metric-value{display:flex!important;align-items:center!important;gap:6px!important;margin-top:auto!important}
 .metric-value .badge{padding:3px 9px!important;margin:0!important;display:inline-flex!important;width:auto!important}
+.marker-card .metric-item{position:relative!important;overflow:hidden!important}
+.marker-card .metric-value{max-width:calc(100% - 64px)!important;white-space:nowrap!important}
+.marker-sparkline{position:absolute;right:10px;bottom:11px;width:58px;height:27px;pointer-events:none;opacity:.9}
+.marker-sparkline polyline{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.marker-sparkline circle{stroke:#fffdfa;stroke-width:1.4}
 @media(max-width:900px){.overview-metrics,.lab-card .metric-row,.marker-card .metric-row{grid-template-columns:1fr!important}.metric-title{white-space:normal!important}}
 .therapy-timeline{display:grid;gap:14px;position:relative}
 .therapy-period{display:grid;grid-template-columns:230px 1fr;gap:14px;align-items:start}
@@ -339,9 +344,18 @@ function markerStatus(k,v){const code=markerCode(k), n=num(v);return Number.isFi
 function status(v){return /↑|高/.test(v||'')?'high':/↓|低/.test(v||'')?'low':''}
 function badge(v,forced){const st=forced||status(v);if(st!=='high'&&st!=='low')return '';return '<span class="badge '+st+'">'+(st==='high'?'高':'低')+'</span>'}
 function metricName(m,fallback){if(!m)return fallback||'';if(m.cn)return m.cn+(m.ref?'（'+m.ref+'）':'');return m.key||fallback||''}
-function metricCard(m,label,forced){const st=forced||metricStatus(m,m?.key);return '<span class="metric-item"><b class="metric-title">'+esc(label||metricName(m))+'</b><div class="metric-value">'+(labDisplayValue(m)?metricCell(m,m?.key,st):'-')+(m?.unit?' '+esc(m.unit):'')+'</div></span>'}
+function markerSparkline(key,currentMetric){
+if(!currentMetric||!labDisplayValue(currentMetric))return '';
+const values=state.records.map(normalizeRecord).filter(r=>r.type==='marker').sort((a,b)=>a.date.localeCompare(b.date)).map(r=>{const m=metric(r,[key]);return {date:r.date,value:num(m?.raw??m?.value)}}).filter(p=>Number.isFinite(p.value)).slice(-6);
+if(values.length<2)return '';
+const w=58,h=27,pad=2,min=Math.min(...values.map(p=>p.value)),max=Math.max(...values.map(p=>p.value)),span=max-min||1;
+const points=values.map((p,i)=>{const x=pad+(w-pad*2)*(values.length===1?0.5:i/(values.length-1));const y=max===min?h/2:pad+(h-pad*2)*(1-(p.value-min)/span);return [x,y]}),last=points.at(-1);
+const color=markerStatus(key,currentMetric?.raw||currentMetric?.value)==='high'?'#c6543c':'#7fa3bd';
+return '<svg class="marker-sparkline" viewBox="0 0 '+w+' '+h+'" aria-hidden="true"><polyline points="'+points.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')+'" stroke="'+color+'"></polyline><circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.4" fill="'+color+'"></circle></svg>'
+}
+function metricCard(m,label,forced,sparkKey){const st=forced||metricStatus(m,m?.key);return '<span class="metric-item"><b class="metric-title">'+esc(label||metricName(m))+'</b><div class="metric-value">'+(labDisplayValue(m)?metricCell(m,m?.key,st):'-')+(m?.unit?' '+esc(m.unit):'')+'</div>'+(sparkKey?markerSparkline(sparkKey,m):'')+'</span>'}
 const OVERVIEW_LAB_METRICS=['WBC 白细胞','NEUT3 中性粒细胞绝对值','PLT 血小板','GGT 谷氨酰转肽酶','ALP 碱性磷酸酶','AST 天门冬氨酸氨基转移酶','ALT 丙氨酸氨基转移酶','GLU 葡萄糖'];
-function overview(){const p=state.profile, lab=latest('lab'), mark=latestWithMetrics('marker'), img=latest('imaging');appShell('<section><div class="stat-grid">'+stat('诊断/分期',p.diagnosis,'核心诊断信息')+stat('手术情况及病理诊断',[cleanSurgeryText(p.surgery),cleanPathologyText(p.pathology)].filter(Boolean).join('\n\n'),'')+stat('免疫组化',immunohistochemistryText(p.immunohistochemistry)||'未记录','')+stat('基因检测',p.geneticTesting||'未记录','')+stat('当前治疗状态',currentStage(p.stage)||'未记录','')+'</div><div class="two-col overview-metrics gap-top"><article class="card lab-card"><h2>最近一次血检</h2><p class="date">'+esc(lab?.date||'')+'</p><div class="metric-row">'+OVERVIEW_LAB_METRICS.map(k=>metricCard(metric(lab||{},[k]),k)).join('')+'</div></article><article class="card marker-card"><h2>最近一次肿瘤标志物</h2><p class="date">'+esc(mark?.date||'')+'</p><div class="metric-row">'+['CA242','CEA','CA19-9','CA125','CA72-4'].map(k=>{const m=metric(mark||{},k);return metricCard(m,markerRefLabel(k),markerStatus(k,m?.raw))}).join('')+'</div></article></div><article class="card gap-top"><h2>最近影像</h2>'+row('日期',img?.date)+row('检查',img?.title)+reportRow(img?.details||img?.summary)+'</article></section>')}
+function overview(){const p=state.profile, lab=latest('lab'), mark=latestWithMetrics('marker'), img=latest('imaging');appShell('<section><div class="stat-grid">'+stat('诊断/分期',p.diagnosis,'核心诊断信息')+stat('手术情况及病理诊断',[cleanSurgeryText(p.surgery),cleanPathologyText(p.pathology)].filter(Boolean).join('\n\n'),'')+stat('免疫组化',immunohistochemistryText(p.immunohistochemistry)||'未记录','')+stat('基因检测',p.geneticTesting||'未记录','')+stat('当前治疗状态',currentStage(p.stage)||'未记录','')+'</div><div class="two-col overview-metrics gap-top"><article class="card lab-card"><h2>最近一次血检</h2><p class="date">'+esc(lab?.date||'')+'</p><div class="metric-row">'+OVERVIEW_LAB_METRICS.map(k=>metricCard(metric(lab||{},[k]),k)).join('')+'</div></article><article class="card marker-card"><h2>最近一次肿瘤标志物</h2><p class="date">'+esc(mark?.date||'')+'</p><div class="metric-row">'+['CA242','CEA','CA19-9','CA125','CA72-4'].map(k=>{const m=metric(mark||{},k);return metricCard(m,markerRefLabel(k),markerStatus(k,m?.raw),k)}).join('')+'</div></article></div><article class="card gap-top"><h2>最近影像</h2>'+row('日期',img?.date)+row('检查',img?.title)+reportRow(img?.details||img?.summary)+'</article></section>')}
 const THERAPY_PERIODS=[
 {start:'2024-04-11',end:'2024-04-11',label:'2024-04-11',kind:'手术',name:'胰体尾+脾切除术',note:''},
 {start:'2024-06-15',end:'2024-11-20',label:'2024-06-15～2024-11-20',kind:'化疗',name:'AG化疗（8个周期，16次）',note:''},
