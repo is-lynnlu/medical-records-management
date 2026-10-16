@@ -52,9 +52,8 @@ b,strong{font-weight:400!important}
 .metric-value .badge{padding:3px 9px!important;margin:0!important;display:inline-flex!important;width:auto!important}
 .marker-card .metric-item{position:relative!important;overflow:hidden!important}
 .marker-card .metric-value{max-width:calc(100% - 64px)!important;white-space:nowrap!important}
-.marker-sparkline{position:absolute;right:10px;bottom:11px;width:58px;height:27px;pointer-events:none;opacity:.9}
-.marker-sparkline polyline{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.marker-sparkline circle{stroke:#fffdfa;stroke-width:1.4}
+.marker-sparkline{position:absolute;right:10px;bottom:12px;width:62px;height:28px;pointer-events:none;opacity:.76}
+.marker-sparkline path{fill:none;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 @media(max-width:900px){.overview-metrics,.lab-card .metric-row,.marker-card .metric-row{grid-template-columns:1fr!important}.metric-title{white-space:normal!important}}
 .therapy-timeline{display:grid;gap:14px;position:relative}
 .therapy-period{display:grid;grid-template-columns:230px 1fr;gap:14px;align-items:start}
@@ -348,10 +347,13 @@ function markerSparkline(key,currentMetric){
 if(!currentMetric||!labDisplayValue(currentMetric))return '';
 const values=state.records.map(normalizeRecord).filter(r=>r.type==='marker').sort((a,b)=>a.date.localeCompare(b.date)).map(r=>{const m=metric(r,[key]);return {date:r.date,value:num(m?.raw??m?.value)}}).filter(p=>Number.isFinite(p.value)).slice(-6);
 if(values.length<2)return '';
-const w=58,h=27,pad=2,min=Math.min(...values.map(p=>p.value)),max=Math.max(...values.map(p=>p.value)),span=max-min||1;
-const points=values.map((p,i)=>{const x=pad+(w-pad*2)*(values.length===1?0.5:i/(values.length-1));const y=max===min?h/2:pad+(h-pad*2)*(1-(p.value-min)/span);return [x,y]}),last=points.at(-1);
-const color=markerStatus(key,currentMetric?.raw||currentMetric?.value)==='high'?'#c6543c':'#7fa3bd';
-return '<svg class="marker-sparkline" viewBox="0 0 '+w+' '+h+'" aria-hidden="true"><polyline points="'+points.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')+'" stroke="'+color+'"></polyline><circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.4" fill="'+color+'"></circle></svg>'
+const w=62,h=28,pad=2.5,min=Math.min(...values.map(p=>p.value)),max=Math.max(...values.map(p=>p.value)),span=max-min||1;
+const points=values.map((p,i)=>{const x=pad+(w-pad*2)*(i/(values.length-1));const y=max===min?h/2:pad+(h-pad*2)*(1-(p.value-min)/span);return [x,y]});
+const clamp=v=>Math.max(pad,Math.min(h-pad,v));
+let d='M '+points[0][0].toFixed(1)+' '+points[0][1].toFixed(1);
+for(let i=0;i<points.length-1;i++){const p0=points[i-1]||points[i],p1=points[i],p2=points[i+1],p3=points[i+2]||p2;const c1=[p1[0]+(p2[0]-p0[0])/6,clamp(p1[1]+(p2[1]-p0[1])/6)],c2=[p2[0]-(p3[0]-p1[0])/6,clamp(p2[1]-(p3[1]-p1[1])/6)];d+=' C '+c1[0].toFixed(1)+' '+c1[1].toFixed(1)+', '+c2[0].toFixed(1)+' '+c2[1].toFixed(1)+', '+p2[0].toFixed(1)+' '+p2[1].toFixed(1)}
+const color=markerStatus(key,currentMetric?.raw||currentMetric?.value)==='high'?'#b86552':'#7896aa';
+return '<svg class="marker-sparkline" viewBox="0 0 '+w+' '+h+'" aria-hidden="true"><path d="'+d+'" stroke="'+color+'"></path></svg>'
 }
 function metricCard(m,label,forced,sparkKey){const st=forced||metricStatus(m,m?.key);return '<span class="metric-item"><b class="metric-title">'+esc(label||metricName(m))+'</b><div class="metric-value">'+(labDisplayValue(m)?metricCell(m,m?.key,st):'-')+(m?.unit?' '+esc(m.unit):'')+'</div>'+(sparkKey?markerSparkline(sparkKey,m):'')+'</span>'}
 const OVERVIEW_LAB_METRICS=['WBC 白细胞','NEUT3 中性粒细胞绝对值','PLT 血小板','GGT 谷氨酰转肽酶','ALP 碱性磷酸酶','AST 天门冬氨酸氨基转移酶','ALT 丙氨酸氨基转移酶','GLU 葡萄糖'];
