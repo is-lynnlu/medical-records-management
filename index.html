@@ -128,6 +128,7 @@ body{background:#f5f0ea}
 .chart-legend span:nth-child(1) .legend-swatch{color:#dfa84c}
 .chart-legend span:nth-child(2) .legend-swatch{color:#9877c4}
 .chart-legend span:nth-child(3) .legend-swatch{color:#62ad85}
+.chart-legend .legend-swatch-surgery{width:3px;height:18px;border:0;border-radius:999px;background:#dfa84c!important}
 .chart-point{cursor:crosshair}
 .chart-point:hover,.chart-point:focus{filter:drop-shadow(0 0 3px rgba(122,156,184,.55));outline:none}
 
@@ -526,7 +527,7 @@ return '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="m
 }).join('');
 const axisName=markerCode(key);
 const legendPeriods=markerBandPeriods(startMs,endMs).filter((p,i,a)=>a.findIndex(x=>x.treatmentKey===p.treatmentKey)===i);
-const legend=legendPeriods.map(p=>'<span><i class="legend-swatch" style="background:'+p.color+'"></i>'+esc(markerBandLabel(p))+'</span>').join('');
+const legend=legendPeriods.map(p=>'<span><i class="legend-swatch legend-swatch-'+p.treatmentKey+'" style="background:'+p.color+'"></i>'+esc(markerBandLabel(p))+'</span>').join('');
 return '<div class="chart-scroll"><svg viewBox="0 0 '+w+' '+h+'" class="chart marker-chart">'+bands+refMark+ticks+'<path d="'+d+'" fill="none" class="marker-line" stroke-width="3"/>'+circles+valueLabels+labels+'<text x="'+((w+l-rr)/2).toFixed(1)+'" y="'+(h-14)+'" text-anchor="middle" class="axis-title">日期</text><text x="20" y="'+((h+t-b)/2).toFixed(1)+'" transform="rotate(-90 20 '+((h+t-b)/2).toFixed(1)+')" text-anchor="middle" class="axis-title">'+esc(axisName)+'</text></svg></div><div class="chart-legend">'+legend+'</div>';
 }
 function record(r){return '<article class="record"><div class="record-top"><span class="date">'+esc(r.date)+'</span><span class="pill">'+esc(TYPES[r.type]||r.type)+'</span></div><h3>'+esc(r.title)+'</h3><p class="preline">'+esc(r.summary||r.details||'')+'</p>'+(r.metrics?.length?'<div class="metric-row">'+r.metrics.slice(0,r.type==='lab'?80:6).filter(m=>m.key!=='备注').map(m=>metricCard({...m,raw:m.value})).join('')+'</div>':'')+'</article>'}
@@ -616,7 +617,7 @@ for(let tickMs=startMs;tickMs<=endMs;){timeTicks.push(tickMs);const tickDate=new
 const labels=timeTicks.map(tickMs=>{const tickDate=new Date(tickMs),label=String(tickDate.getFullYear()).slice(2)+'-'+String(tickDate.getMonth()+1).padStart(2,'0');return '<text x="'+xMs(tickMs).toFixed(1)+'" y="'+(h-b+20)+'" text-anchor="middle" class="axis-label">'+label+'</text>'}).join('');
 const circles=pts.map((p,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="4.5" tabindex="0" class="chart-point point-'+(p.st==='high'?'high':p.st==='low'?'low':'normal')+'" data-date="'+esc(p.date)+'" data-metric="'+esc(axisName)+'" data-value="'+esc(labDisplayValue({raw:p.raw,value:p.v}))+'" data-ref="'+esc(p.ref||'')+'" data-stage="'+esc(treatmentStageOn(p.date))+'"></circle>').join('');
 const valueLabels=nonOverlappingValueLabels(pts,x,y,t+14,h-b-5);
-const legend=[['surgery','胰体尾+脾切除术'],['ag','AG化疗'],['s1','替吉奥']].map(([treatmentKey,label])=>'<span><i class="legend-swatch" style="background:'+MARKER_TREATMENT_COLORS[treatmentKey]+'"></i>'+esc(label)+'</span>').join('');
+const legend=[['surgery','胰体尾+脾切除术'],['ag','AG化疗'],['s1','替吉奥']].map(([treatmentKey,label])=>'<span><i class="legend-swatch legend-swatch-'+treatmentKey+'" style="background:'+MARKER_TREATMENT_COLORS[treatmentKey]+'"></i>'+esc(label)+'</span>').join('');
 return '<div class="chart-legend chart-legend-top">'+legend+'</div><div class="chart-scroll"><svg viewBox="0 0 '+w+' '+h+'" class="chart trend-chart">'+bands+refMark+ticks+'<path d="'+d+'" fill="none" class="trend-line" stroke-width="3"/>'+circles+valueLabels+labels+'<text x="'+((w+l-rr)/2).toFixed(1)+'" y="'+(h-14)+'" text-anchor="middle" class="axis-title">日期</text><text x="20" y="'+((h+t-b)/2).toFixed(1)+'" transform="rotate(-90 20 '+((h+t-b)/2).toFixed(1)+')" text-anchor="middle" class="axis-title">'+esc(axisName)+'</text></svg></div>'+chartRangeControl(scope,allPts,from,to);
 }
 function chart(rows,key){return trendChart(rows,key,key,'lab')}
