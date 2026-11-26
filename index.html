@@ -648,7 +648,7 @@ CALENDAR_DATA.events['2026-10-21']=[...(CALENDAR_DATA.events['2026-10-21']||[]).
 CALENDAR_DATA.events['2026-11-13']=[...(CALENDAR_DATA.events['2026-11-13']||[]).filter(x=>x!=='约输液港维护'),'约输液港维护'];
 CALENDAR_DATA.events['2026-11-20']=[...(CALENDAR_DATA.events['2026-11-20']||[]).filter(x=>x!=='输液港维护'&&x!=='输液港维护（已完成）'&&x!=='查肿标'),'查肿标'];
 CALENDAR_DATA.events['2026-11-23']=[...(CALENDAR_DATA.events['2026-11-23']||[]).filter(x=>x!=='输液港维护'&&x!=='输液港维护（已完成）'),'输液港维护（已完成）'];
-CALENDAR_DATA.events['2026-11-30']=[...(CALENDAR_DATA.events['2026-11-30']||[]).filter(x=>x!=='查肿标'&&x!=='FAPI PET'),'查肿标','FAPI PET'];
+CALENDAR_DATA.events['2026-11-30']=[...(CALENDAR_DATA.events['2026-11-30']||[]).filter(x=>!['查肿标','FAPI PET','糖化、肿标','Fapi Pet'].includes(x)),'糖化、肿标','Fapi Pet'];
 CALENDAR_DATA.events['2026-11-25']=[...(CALENDAR_DATA.events['2026-11-25']||[]).filter(x=>x!=='约12月内分泌科号'&&x!=='约1月内分泌科号'&&x!=='约东院上午基本外科号开增强CT'),'约12月内分泌科号'];
 CALENDAR_DATA.events['2026-11-18']=(CALENDAR_DATA.events['2026-11-18']||[]).filter(x=>x!=='约东院上午基本外科号开增强CT');
 CALENDAR_DATA.events['2026-12-03']=[...(CALENDAR_DATA.events['2026-12-03']||[]).filter(x=>x!=='内分泌科'&&x!=='内分泌科号'&&x!=='程月鹃（复诊）'),'内分泌科号','程月鹃（复诊）'];
